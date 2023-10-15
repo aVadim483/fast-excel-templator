@@ -1,0 +1,41 @@
+{
+    "name": "avadim/fast-excel-templator",
+    "description": "Lightweight and very fast XLSX Excel Spreadsheet Writer in PHP",
+    "keywords": [
+        "php",
+        "excel",
+        "phpexcel",
+        "library",
+        "xls",
+        "xlsx",
+		"spreadsheet",
+		"ms office",
+		"office 2007"
+    ],
+    "type": "library",
+    "homepage": "https://github.com/aVadim483/fast-excel-templator",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "avadim\\FastExcelTemplator\\": "./src/FastExcelTemplator"
+        }
+    },
+    "require": {
+        "php": "^7.4||^8.1",
+        "ext-zip": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "ext-intl": "*",
+        "ext-xmlreader": "*",
+        "ext-dom": "*",
+        "avadim/fast-excel-helper": "dev-main",
+        "avadim/fast-excel-writer": "dev-dev",
+        "avadim/fast-excel-reader": "dev-dev"
+    },
+    "funding": [
+        {
+            "type": "other",
+            "url": "https://www.paypal.me/VShemarov"
+        }
+    ]
+}
