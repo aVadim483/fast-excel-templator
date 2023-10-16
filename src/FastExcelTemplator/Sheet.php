@@ -171,6 +171,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         }
         foreach ($row as $colLetter => $cell) {
             $cellAddress = $colLetter . $rowNumber;
+            $cellAddressIdx = ['row_idx' => $rowNumber - 1, 'col_idx' => Helper::colIndex($colLetter)];
             if ($cell instanceof \DOMElement) {
                 $value = $cell->nodeValue;
                 if ($cell->hasAttributes()) {
@@ -179,13 +180,15 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                         $this->sheetWriter->_setStyleIdx($cellAddress, (int)$styleId);
                     }
                 }
-                $this->sheetWriter->writeTo($cellAddress, $value);
+                ///$this->sheetWriter->writeTo($cellAddress, $value);
+                $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $value);
             }
             elseif (is_array($cell)) {
-                $this->_writeWithStyle($cellAddress, $cell);
+                $this->_writeWithStyle($cellAddress, $cellAddressIdx, $cell);
             }
             else {
-                $this->sheetWriter->writeTo($cellAddress, null);
+                ///$this->sheetWriter->writeTo($cellAddress, null);
+                $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, null);
             }
         }
         $this->insertedRowsCount++;
@@ -244,24 +247,28 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         return null;
     }
 
-    private function _writeWithStyle($cellAddress, $cellData)
+    private function _writeWithStyle($cellAddress, $cellAddressIdx, $cellData)
     {
         $numberFormatType = null;
         if ($cellData['t'] === 'date' && is_numeric($cellData['o'])) {
-            $this->sheetWriter->writeTo($cellAddress, $cellData['o']);
+            ///$this->sheetWriter->writeTo($cellAddress, $cellData['o']);
+            $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellData['o']);
             $numberFormatType = 'n_auto';
         }
         elseif (!empty($cellData['f'])) {
-            $this->sheetWriter->writeTo($cellAddress, $cellData['f']);
+            ///$this->sheetWriter->writeTo($cellAddress, $cellData['f']);
+            $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellData['f']);
         }
         else {
             if ($cellData['t'] === 'date') {
                 $pattern = $this->excel->getDateFormatPattern($cellData['s']);
-                $this->sheetWriter->writeTo($cellAddress, $cellData['v'], ['format' => $pattern]);
+                ///$this->sheetWriter->writeTo($cellAddress, $cellData['v'], ['format' => $pattern]);
+                $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellData['v'], ['format' => $pattern]);
                 $numberFormatType = 'n_date';
             }
             else {
-                $this->sheetWriter->writeTo($cellAddress, $cellData['v']);
+                ///$this->sheetWriter->writeTo($cellAddress, $cellData['v']);
+                $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellData['v']);
             }
         }
         $this->sheetWriter->_setStyleIdx($cellAddress, $cellData['s'], $numberFormatType);
@@ -282,7 +289,8 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                 if (!$idle) {
                     foreach ($rowData as $colLetter => $cellData) {
                         $cellAddress = $colLetter . ($rowNum + $this->insertedRowsCount);
-                        $this->_writeWithStyle($cellAddress, $cellData);
+                        $cellAddressIdx = ['row_idx' => $rowNum + $this->insertedRowsCount - 1, 'col_idx' => Helper::colIndex($colLetter)];
+                        $this->_writeWithStyle($cellAddress, $cellAddressIdx, $cellData);
                     }
                     $this->sheetWriter->nextRow();
                 }

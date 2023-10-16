@@ -2,6 +2,8 @@
 
 namespace avadim\FastExcelTemplator;
 
+use avadim\FastExcelWriter\Exceptions\ExceptionFile;
+
 class ExcelWriter extends \avadim\FastExcelWriter\Excel
 {
     public static function createSheet(string $sheetName): SheetWriter
@@ -19,8 +21,38 @@ class ExcelWriter extends \avadim\FastExcelWriter\Excel
         return parent::makeSheet($sheetName);
     }
 
+    /**
+     * @param $inputFile
+     * @param $outputFile
+     *
+     * @return bool
+     */
     public function replaceSheets($inputFile, $outputFile): bool
     {
-        return $this->writer->_replaceSheets($inputFile, $outputFile);
+        $result = $this->writer->_replaceSheets($inputFile, $outputFile);
+        if ($result) {
+            $zip = new \ZipArchive();
+            if (!$zip->open($outputFile)) {
+                ExceptionFile::throwNew('Unable to open zip "%s"', $outputFile);
+            }
+
+            if ($zip->statName('xl/calcChain.xml')) {
+                $zip->deleteName('xl/calcChain.xml');
+                $str = $zip->getFromName('[Content_Types].xml');
+                if ($str) {
+                    $str = preg_replace('#<[^>]+calcChain.xml[^>]+>#i', '', $str);
+                    $zip->addFromString('[Content_Types].xml', $str);
+                }
+                $str = $zip->getFromName('xl/_rels/workbook.xml.res');
+                if ($str) {
+                    $str = preg_replace('#<[^>]+calcChain.xml[^>]+>#i', '', $str);
+                    $zip->addFromString('xl/_rels/workbook.xml.res', $str);
+                }
+            }
+
+            $zip->close();
+        }
+
+        return $result;
     }
 }
