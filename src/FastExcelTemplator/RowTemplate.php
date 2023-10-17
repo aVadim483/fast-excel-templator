@@ -65,12 +65,12 @@ class RowTemplate implements \Iterator
 
     public function setValue($colLetter, $value): RowTemplate
     {
-        if ($value &&is_string($value) && $value[0] === '=') {
-            $this->domCells[$colLetter]['v'] = $value;
-        }
-        else {
+        if ($value && is_string($value) && $value[0] === '=') {
             $this->domCells[$colLetter]['f'] = $value;
             $this->domCells[$colLetter]['v'] = '';
+        }
+        else {
+            $this->domCells[$colLetter]['v'] = $value;
         }
 
         return $this;

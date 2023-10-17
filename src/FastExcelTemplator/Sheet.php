@@ -273,7 +273,9 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                 $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellData['v']);
             }
         }
-        $this->sheetWriter->_setStyleIdx($cellAddress, $cellData['s'], $numberFormatType);
+        if (isset($cellData['s'])) {
+            $this->sheetWriter->_setStyleIdx($cellAddress, $cellData['s'], $numberFormatType);
+        }
     }
 
     /**

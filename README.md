@@ -4,15 +4,15 @@
 
 Excel::template($template, $output);
 
-* fill() - Replaces the entire cell value for all sheets
-* replace() - Replaces a substring in a cell for all sheets
+* fill(array $replacement) - Replaces the entire cell value for all sheets
+* replace(array $replacement) - Replaces a substring in a cell for all sheets
 * save()
 
 ## Sheet
 
-* fill() - Replaces the entire cell value for the sheet
-* replace() - Replaces a substring in a cell for the sheet
+* fill(array $replacement) - Replaces the entire cell value for the sheet
+* replace(array $replacement) - Replaces a substring in a cell for the sheet
 * getRowTemplate($rowNumber) - Gets template from the row
-* insertRow()
-* replaceRow()
-* insertRowAfterLast()
+* insertRow($rowNumber, $rowTemplate, ?array $cellData = [])
+* replaceRow($rowNumber, $rowTemplate, ?array $cellData = [])
+* insertRowAfterLast($rowTemplate, ?array $cellData = [])
