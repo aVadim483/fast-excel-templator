@@ -49,6 +49,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
 
     public function postRead($xmlReader)
     {
+        $tags = ['pageMargins', 'pageSetup', 'drawing', 'legacyDrawing'];
         while ($xmlReader->read()) {
             if ($xmlReader->nodeType === \XMLReader::ELEMENT) {
                 if ($xmlReader->name === 'mergeCell') {
@@ -57,16 +58,10 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                         $this->sheetWriter->mergeCells($range);
                     }
                 }
-                elseif ($xmlReader->name === 'pageMargins') {
+                elseif (in_array($xmlReader->name, $tags)) {
                     $options = $xmlReader->getAllAttributes();
                     if ($options) {
-                        $this->sheetWriter->setPageMargins($options);
-                    }
-                }
-                elseif ($xmlReader->name === 'pageSetup') {
-                    $options = $xmlReader->getAllAttributes();
-                    if ($options) {
-                        $this->sheetWriter->setPageSetup($options);
+                        $this->sheetWriter->setBottomNodesOptions($xmlReader->name, $options);
                     }
                 }
             }
@@ -129,9 +124,11 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
             $xmlReader->openZip($this->path);
             $found = false;
             $rowTemplate = new RowTemplate();
+            $rowAttributes = [];
             while ($xmlReader->read()) {
                 if ($xmlReader->nodeType === \XMLReader::ELEMENT && $xmlReader->name === 'row' && (int)$xmlReader->getAttribute('r') === $rowNumber) {
                     $found = true;
+                    $rowTemplate->setAttributes($xmlReader->getAllAttributes());
                     continue;
                 }
                 if ($xmlReader->nodeType === \XMLReader::END_ELEMENT && $xmlReader->name === 'row' && $found) {
@@ -168,6 +165,11 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         }
         else {
             $row->setValues($cellData);
+        }
+
+        $rowHeight = ($row instanceof RowTemplate) ? $row->attribute('ht') : null;
+        if ($rowHeight !== null) {
+            $this->sheetWriter->setRowHeight($rowNumber, $rowHeight);
         }
         foreach ($row as $colLetter => $cell) {
             $cellAddress = $colLetter . $rowNumber;
@@ -235,7 +237,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
     public function readRow(): ?\Generator
     {
         if (empty($this->readGenerator)) {
-            $this->readGenerator = $this->nextRow([], 0, true);
+            $this->readGenerator = $this->nextRow([], \avadim\FastExcelReader\Excel::RESULT_MODE_ROW, true);
         }
         while ($rowNum = $this->readGenerator->key()) {
             $cellData = $this->readGenerator->current();
@@ -287,9 +289,13 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         if (!$maxRowNum || $maxRowNum > $this->lastReadRowNum) {
             foreach ($this->readRow() as $rowNum => $rowData) {
                 if (!$idle) {
-                    foreach ($rowData as $colLetter => $cellData) {
-                        $cellAddress = $colLetter . ($rowNum + $this->insertedRowsCount);
-                        $cellAddressIdx = ['row_idx' => $rowNum + $this->insertedRowsCount - 1, 'col_idx' => Helper::colIndex($colLetter)];
+                    $rowNumOut = $rowNum + $this->insertedRowsCount;
+                    if (isset($rowData['__row']['ht'])) {
+                        $this->sheetWriter->setRowHeight($rowNumOut, $rowData['__row']['ht']);
+                    }
+                    foreach ($rowData['__cells'] as $colLetter => $cellData) {
+                        $cellAddress = $colLetter . $rowNumOut;
+                        $cellAddressIdx = ['row_idx' => $rowNumOut - 1, 'col_idx' => Helper::colIndex($colLetter)];
                         $this->_writeWithStyle($cellAddress, $cellAddressIdx, $cellData);
                     }
                     $this->sheetWriter->nextRow();

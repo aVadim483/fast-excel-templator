@@ -34,10 +34,10 @@ class Reader extends \avadim\FastExcelReader\Reader
         if ($this->nodeType === \XMLReader::ELEMENT) {
             $this->currentLevel = $this->depth;
             $this->currentNodeName = $this->name;
-            $this->nodes[$this->currentLevel][$this->currentNodeName]['_attr'] = [];
+            $this->nodes[$this->currentLevel][$this->currentNodeName]['__attr'] = [];
             if ($this->hasAttributes) {
                 while ($this->moveToNextAttribute()) {
-                    $this->nodes[$this->currentLevel][$this->currentNodeName]['_attr'][$this->name] = $this->value;
+                    $this->nodes[$this->currentLevel][$this->currentNodeName]['__attr'][$this->name] = $this->value;
                 }
                 $this->moveToElement();
             }
@@ -46,9 +46,15 @@ class Reader extends \avadim\FastExcelReader\Reader
         return $result;
     }
 
-    public function getNodeAttribute(string $name): ?string
+    public function getNodeAttributes(string $nodeName): ?array
     {
-        return $this->nodes[$this->currentLevel][$this->currentNodeName]['_attr'][$name] ?? null;
+        for ($level = $this->currentLevel; $level >= 0; $level--) {
+            if (isset($this->nodes[$level][$nodeName]['__attr'])) {
+                return $this->nodes[$level][$nodeName]['__attr'];
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -57,7 +63,7 @@ class Reader extends \avadim\FastExcelReader\Reader
     public function getAllAttributes(): array
     {
 
-        return $this->nodes[$this->currentLevel][$this->currentNodeName]['_attr'] ?? [];
+        return $this->nodes[$this->currentLevel][$this->currentNodeName]['__attr'] ?? [];
     }
 
     public function validate()

@@ -6,6 +6,7 @@ class RowTemplate implements \Iterator
 {
     protected array $domCells = [];
 
+    protected array $attributes = [];
 
     public function __construct(?array $cellData = [])
     {
@@ -17,6 +18,26 @@ class RowTemplate implements \Iterator
     public function addCell($colLetter, $cell)
     {
         $this->domCells[$colLetter] = $cell;
+    }
+
+    /**
+     * @param array $attributes
+     *
+     * @return void
+     */
+    public function setAttributes(array $attributes)
+    {
+        $this->attributes = $attributes;
+    }
+
+    /**
+     * @param $name
+     *
+     * @return string|null
+     */
+    public function attribute($name): ?string
+    {
+        return $this->attributes[$name] ?? null;
     }
 
     public function current()
