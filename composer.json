@@ -28,9 +28,9 @@
         "ext-intl": "*",
         "ext-xmlreader": "*",
         "ext-dom": "*",
-        "avadim/fast-excel-helper": "dev-main",
-        "avadim/fast-excel-writer": "dev-dev",
-        "avadim/fast-excel-reader": "dev-dev"
+        "avadim/fast-excel-helper": "^1.0",
+        "avadim/fast-excel-writer": "^4.8",
+        "avadim/fast-excel-reader": "^2.10"
     },
     "funding": [
         {
