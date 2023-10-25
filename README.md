@@ -1,13 +1,16 @@
 # FastExcelTemplator
 
-This is a part of the **FastExcelPhp Project**
+**FastExcelTemplator** is a part of the **FastExcelPhp Project** which consists of
 
-This library **FastExcelTemplator** can generate Excel-compatible spreadsheets in XLSX format (Office 2007+) from XLSX templates, 
-very quickly and with minimal memory usage.
+* [FastExcelWriter](https://packagist.org/packages/avadim/fast-excel-writer) - to create Excel spreadsheets
+* [FastExcelReader](https://packagist.org/packages/avadim/fast-excel-reader) - to reader Excel spreadsheets
+* [FastExcelTemplator](https://packagist.org/packages/avadim/fast-excel-templator) - to generate Excel spreadsheets from XLSX templates
+* [FastExcelLaravel](https://packagist.org/packages/avadim/fast-excel-laravel) - special **Laravel** edition
 
 ## Introduction
 
-This library is designed to be lightweight, super-fast and requires minimal memory usage.
+**FastExcelTemplator** can generate Excel-compatible spreadsheets in XLSX format (Office 2007+) from XLSX templates,
+very quickly and with minimal memory usage. This library is designed to be lightweight, super-fast and requires minimal memory usage.
 
 **Features**
 
@@ -32,11 +35,72 @@ require 'path/to/fast-excel-templator/src/autoload.php';
 
 ## Usage
 
-You can find more examples in */demo* folder
+Example of template
 
+![img1-tpl.png](img1-tpl.png)
 
+From this template you can get a file like this
 
-## Excel
+![img1-out.png](img1-out.png)
+
+```php
+// Open template and set output file
+$excel = Excel::template($tpl, $out);
+// Get the first sheet
+$sheet = $excel->sheet();
+
+$fillData = [
+    '{{COMPANY}}' => 'Comp Stock Shop',
+    '{{ADDRESS}}' => '123 ABC Street',
+    '{{CITY}}' => 'Peace City, TN',
+];
+
+// Replaces entire cell values for the sheet
+// If the value is '{{COMPANY}}', then this value will be replaced,
+// but if the value 'Company Name {{COMPANY}}', then this value will not be replaced 
+$sheet->fill($fillData);
+
+// Replaces any occurring substrings
+// If the value is '{{DATE}}' or 'Date: {{DATE}}', then substring '{{DATE}}' will be replaced,
+$replaceData = ['{{BULK_QTY}}' => 12, '{{DATE}}' => date('m/d/Y')];
+$sheet->replace($fillData);
+```
+
+Also, you can use any row as a template
+
+```php
+// Get the specified row (number 6) as a template
+$rowTemplate = $sheet->getRowTemplate(6);
+// You can insert template row many times with new data
+$rowData = [
+    // Value for the column A
+    'A' => 'AA-8465-947563',
+    // Value for the column B
+    'B' => 'NEC Mate Type ML PC-MK29MLZD1FWG',
+    // And so on...
+    'C' => 816,
+    'D' => 683,
+];
+// Replace row 6 instead of a template row
+$sheet->replaceRow(6, $rowTemplate, $rowData);
+
+// New data for the new row
+$rowData = [
+    // ...
+];
+// Add new row from the same template after the last insertion
+$sheet->insertRowAfterLast($rowTemplate, $rowData);
+
+// ...
+// Save new file
+$excel->save();
+
+```
+
+You can find code examples in */demo* folder
+
+## List of functions
+### Class Excel
 
 Excel::template($template, $output);
 
@@ -44,7 +108,7 @@ Excel::template($template, $output);
 * replace(array $replacement) - Replaces a substring in a cell for all sheets
 * save()
 
-## Sheet
+### Class Sheet
 
 * fill(array $replacement) - Replaces the entire cell value for the sheet
 * replace(array $replacement) - Replaces a substring in a cell for the sheet

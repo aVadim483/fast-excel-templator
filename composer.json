@@ -1,6 +1,6 @@
 {
     "name": "avadim/fast-excel-templator",
-    "description": "Lightweight and very fast XLSX Excel Spreadsheet Writer in PHP",
+    "description": "Lightweight and very fast Excel Spreadsheet generator from XLSX-templates in PHP",
     "keywords": [
         "php",
         "excel",
