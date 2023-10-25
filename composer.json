@@ -30,7 +30,7 @@
         "ext-dom": "*",
         "avadim/fast-excel-helper": "^1.0",
         "avadim/fast-excel-writer": "^4.8",
-        "avadim/fast-excel-reader": "^2.10"
+        "avadim/fast-excel-reader": "^2.11"
     },
     "funding": [
         {
