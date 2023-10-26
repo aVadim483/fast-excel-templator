@@ -290,7 +290,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
     {
         if (!$maxRowNum || $maxRowNum > $this->lastReadRowNum) {
             foreach ($this->readRow() as $rowNum => $rowData) {
-                if (!$idle) {
+                if (!$idle && (!$maxRowNum || $rowNum <= $maxRowNum)) {
                     $rowNumOut = $rowNum + $this->insertedRowsCount;
                     if (isset($rowData['__row']['ht'])) {
                         $this->sheetWriter->setRowHeight($rowNumOut, $rowData['__row']['ht']);

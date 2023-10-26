@@ -37,11 +37,11 @@ require 'path/to/fast-excel-templator/src/autoload.php';
 
 Example of template
 
-![img1-tpl.png](img1-tpl.png)
+![demo1-tpl.png](demo1-tpl.png)
 
 From this template you can get a file like this
 
-![img1-out.png](img1-out.png)
+![demo1-out.png](demo1-out.png)
 
 ```php
 // Open template and set output file
@@ -116,3 +116,13 @@ Excel::template($template, $output);
 * insertRow($rowNumber, $rowTemplate, ?array $cellData = [])
 * replaceRow($rowNumber, $rowTemplate, ?array $cellData = [])
 * insertRowAfterLast($rowTemplate, ?array $cellData = [])
+
+## Do you like FastExcelTemplator?
+
+if you find this package useful you can support and donate to me for a cup of coffee:
+
+* USDT (TRC20) TSsUFvJehQBJCKeYgNNR1cpswY6JZnbZK7
+* USDT (ERC20) 0x5244519D65035aF868a010C2f68a086F473FC82b
+* ETH 0x5244519D65035aF868a010C2f68a086F473FC82b
+
+Or just give me a star on GitHub :)

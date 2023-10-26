@@ -2,6 +2,8 @@
 
 namespace avadim\FastExcelTemplator;
 
+use avadim\FastExcelHelper\Helper;
+
 class RowTemplate implements \Iterator
 {
     protected array $domCells = [];
@@ -18,6 +20,32 @@ class RowTemplate implements \Iterator
     public function addCell($colLetter, $cell)
     {
         $this->domCells[$colLetter] = $cell;
+    }
+
+    /**
+     * @param $colLetter
+     * @param $colTarget
+     *
+     * @return void
+     */
+    public function cloneCellTo($colLetter, $colTarget)
+    {
+        if (preg_match('/^([a-z]+)(\d+)/i', $colLetter, $m)) {
+            $colLetter = $m[1];
+        }
+        $colLetter = strtoupper($colLetter);
+        if (isset($this->domCells[$colLetter])) {
+            $colTarget = Helper::colLetterRange($colTarget);
+            foreach ($colTarget as $col) {
+                if (is_object($this->domCells[$colLetter])) {
+                    $cell = clone $this->domCells[$colLetter];
+                }
+                else {
+                    $cell = $this->domCells[$colLetter];
+                }
+                $this->addCell($col, $cell);
+            }
+        }
     }
 
     /**
