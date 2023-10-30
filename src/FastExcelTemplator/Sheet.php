@@ -19,6 +19,9 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
 
     protected ?\Generator $readGenerator = null;
 
+    protected array $tables = [];
+
+
     public function __construct($sheetName, $sheetId, $file, $path, $excel)
     {
         parent::__construct($sheetName, $sheetId, $file, $path, $excel);
@@ -307,5 +310,18 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                 }
             }
         }
+    }
+
+    /**
+     * @param $range
+     *
+     * @return TableTemplate
+     */
+    public function table($range): TableTemplate
+    {
+        $table = new TableTemplate($this, $range);
+        $this->tables[] = $table;
+
+        return $table;
     }
 }
