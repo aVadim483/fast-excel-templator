@@ -42,11 +42,11 @@ $data = [
 ];
 
 $head = $sheet->getRowTemplate(4);
-$head->cloneCellTo('D', 'E-I');
+$head->cloneCell('D', 'E-I');
 $sheet->replaceRow(4, $head, ['D' => 'January', 'E' => 'February', 'F' => 'March', 'G' => 'April', 'H' => 'May', 'I' => 'June']);
 
 $rowTemplate = $sheet->getRowTemplate(5);
-$rowTemplate->cloneCellTo('D', ['E', 'F', 'G-I']);
+$rowTemplate->cloneCell('D', ['E', 'F', 'G-I']);
 $cnt = 0;
 foreach ($data as $locName => $locData) {
     $rowData = [

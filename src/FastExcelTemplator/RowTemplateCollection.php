@@ -4,6 +4,7 @@ namespace avadim\FastExcelTemplator;
 
 class RowTemplateCollection implements \Iterator
 {
+    /** @var RowTemplate[]  */
     protected array $rowTemplates = [];
     protected int $pointer = 0;
 
@@ -20,6 +21,21 @@ class RowTemplateCollection implements \Iterator
     public function addRowTemplate($row)
     {
         $this->rowTemplates[] = $row;
+    }
+
+    /**
+     * @param string $colSource
+     * @param $colTarget
+     *
+     * @return $this
+     */
+    public function cloneCell(string $colSource, $colTarget): RowTemplateCollection
+    {
+        foreach ($this->rowTemplates as $rowTemplate) {
+            $rowTemplate->cloneCell($colSource, $colTarget);
+        }
+
+        return $this;
     }
 
     public function current()

@@ -23,25 +23,39 @@ class RowTemplate implements \Iterator
     }
 
     /**
-     * @param $colLetter
+     * @param string|null $colSource
+     *
+     * @return void
+     */
+    public function appendCell(?string $colSource = null)
+    {
+        if (!$colSource) {
+            $colSource = array_key_last($this->domCells);
+        }
+        $colTarget = Helper::colLetter(Helper::colNumber($colSource) + 1);
+        $this->cloneCell($colSource, $colTarget);
+    }
+
+    /**
+     * @param string $colSource
      * @param $colTarget
      *
      * @return void
      */
-    public function cloneCellTo($colLetter, $colTarget)
+    public function cloneCell(string $colSource, $colTarget)
     {
-        if (preg_match('/^([a-z]+)(\d+)/i', $colLetter, $m)) {
-            $colLetter = $m[1];
+        if (preg_match('/^([a-z]+)(\d+)/i', $colSource, $m)) {
+            $colSource = $m[1];
         }
-        $colLetter = strtoupper($colLetter);
-        if (isset($this->domCells[$colLetter])) {
+        $colSource = strtoupper($colSource);
+        if (isset($this->domCells[$colSource])) {
             $colTarget = Helper::colLetterRange($colTarget);
             foreach ($colTarget as $col) {
-                if (is_object($this->domCells[$colLetter])) {
-                    $cell = clone $this->domCells[$colLetter];
+                if (is_object($this->domCells[$colSource])) {
+                    $cell = clone $this->domCells[$colSource];
                 }
                 else {
-                    $cell = $this->domCells[$colLetter];
+                    $cell = $this->domCells[$colSource];
                 }
                 $this->addCell($col, $cell);
             }

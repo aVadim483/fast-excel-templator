@@ -313,13 +313,15 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
     }
 
     /**
-     * @param $range
+     * @param string $range
+     * @param string|null $header
+     * @param string|null $footer
      *
      * @return TableTemplate
      */
-    public function table($range): TableTemplate
+    public function table(string $range, ?string $header = null, ?string $footer = null): TableTemplate
     {
-        $table = new TableTemplate($this, $range);
+        $table = new TableTemplate($this, $range, $header, $footer);
         $this->tables[] = $table;
 
         return $table;
