@@ -154,6 +154,14 @@ class TableTemplate
     }
 
     /**
+     * @return RowTemplate|void
+     */
+    public function nextRowTemplate()
+    {
+        return $this->rowTemplates->next();
+    }
+
+    /**
      * @param $rowData
      *
      * @return void
@@ -161,7 +169,8 @@ class TableTemplate
     public function writeRow($rowData)
     {
         if (!$this->headerWritten) {
-
+            $this->header->transferRows();
+            $this->headerWritten = true;
         }
         $row = $this->rowTemplates->next();
         $cnt1 = count($this->tplRangeBody['col_letters']);
@@ -199,6 +208,17 @@ class TableTemplate
     public function writeRowPattern($rowData)
     {
 
+    }
+
+    public function transferRows()
+    {
+        if ($this->sheet->lastReadRowNum < $this->tplRangeBody['min_row_num']) {
+            $this->sheet->transferRows($this->tplRangeBody['min_row_num'] - 1);
+        }
+        while ($this->sheet->lastReadRowNum < $this->tplRangeBody['max_row_num']) {
+            $row = $this->rowTemplates->next();
+            $this->sheet->replaceRow($this->sheet->countInsertedRows + 1, $row);
+        }
     }
 
 }

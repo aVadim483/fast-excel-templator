@@ -10,12 +10,14 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
 {
     public SheetWriter $sheetWriter;
 
+    public int $lastReadRowNum = 0;
+
+    public int $countInsertedRows = 0;
+
     protected array $fill = [];
     protected array $replace = [];
     protected array $rowTemplates = [];
-    protected int $insertedRowsCount = 0;
     protected int $lastTouchRowNum = 0;
-    protected int $lastReadRowNum = 0;
 
     protected ?\Generator $readGenerator = null;
 
@@ -161,12 +163,12 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      */
     public function insertRow(int $rowNumber, $row, ?array $cellData = [])
     {
-        $this->transferRows($rowNumber - 1 - $this->insertedRowsCount);
+        $this->transferRows($rowNumber - 1 - $this->countInsertedRows);
         if (is_array($row)) {
             $cellData = $row;
             $row = new RowTemplate($cellData);
         }
-        else {
+        elseif ($cellData) {
             $row->setValues($cellData);
         }
 
@@ -196,7 +198,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                 $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, null);
             }
         }
-        $this->insertedRowsCount++;
+        $this->countInsertedRows++;
         $this->lastTouchRowNum = $rowNumber;
         $this->sheetWriter->nextRow();
     }
@@ -219,7 +221,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
     {
         $this->insertRow($rowNumber, $row, $cellData);
         $this->transferRows($rowNumber, true);
-        $this->insertedRowsCount--;
+        $this->countInsertedRows--;
     }
 
     /**
@@ -289,12 +291,12 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      *
      * @return void
      */
-    public function transferRows(?int $maxRowNum = 0, ?bool $idle = false)
+    public function transferRows(?int $maxRowNum = null, ?bool $idle = false)
     {
-        if (!$maxRowNum || $maxRowNum > $this->lastReadRowNum) {
+        if ($maxRowNum === null || $maxRowNum > $this->lastReadRowNum) {
             foreach ($this->readRow() as $rowNum => $rowData) {
                 if (!$idle && (!$maxRowNum || $rowNum <= $maxRowNum)) {
-                    $rowNumOut = $rowNum + $this->insertedRowsCount;
+                    $rowNumOut = $rowNum + $this->countInsertedRows;
                     if (isset($rowData['__row']['ht'])) {
                         $this->sheetWriter->setRowHeight($rowNumOut, $rowData['__row']['ht']);
                     }
@@ -305,7 +307,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                     }
                     $this->sheetWriter->nextRow();
                 }
-                if (!empty($maxRowNum) && !empty($rowNum) && ($rowNum >= $maxRowNum)) {
+                if ($maxRowNum !== null && !empty($rowNum) && ($rowNum >= $maxRowNum)) {
                     break;
                 }
             }
