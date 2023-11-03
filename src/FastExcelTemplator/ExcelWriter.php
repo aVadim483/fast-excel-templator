@@ -29,7 +29,11 @@ class ExcelWriter extends \avadim\FastExcelWriter\Excel
      */
     public function replaceSheets($inputFile, $outputFile): bool
     {
-        $result = $this->writer->_replaceSheets($inputFile, $outputFile);
+        $relationShips = [
+            'rel_id' => ['workbook' => 0],
+        ];
+
+        $result = $this->writer->_replaceSheets($inputFile, $outputFile, $relationShips);
         if ($result) {
             $zip = new \ZipArchive();
             if (!$zip->open($outputFile)) {
