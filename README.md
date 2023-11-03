@@ -28,11 +28,6 @@ Use `composer` to install **FastExcelTemplator** into your project:
 composer require avadim/fast-excel-templator
 ```
 
-Also, you can download package and include autoload file of the library:
-```php
-require 'path/to/fast-excel-templator/src/autoload.php';
-```
-
 ## Usage
 
 Example of template
