@@ -68,24 +68,30 @@ class RowTemplate implements \Iterator
         return $this->attributes[$name] ?? null;
     }
 
+    #[\ReturnTypeWillChange]
     public function current()
     {
         return current($this->domCells);
     }
 
+    #[\ReturnTypeWillChange]
     public function key()
     {
         return key($this->domCells);
     }
 
+    #[\ReturnTypeWillChange]
     public function next()
     {
         return next($this->domCells);
     }
+
+    #[\ReturnTypeWillChange]
     public function rewind()
     {
         return reset($this->domCells);
     }
+
     public function valid(): bool
     {
         return (bool)current($this->domCells);
