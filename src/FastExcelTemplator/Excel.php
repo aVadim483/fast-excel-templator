@@ -48,8 +48,7 @@ class Excel extends ExcelReader
     {
         foreach ($this->sheets as $sheetId => $sheet) {
             $sheet->sheetWriter = $this->excelWriter->makeSheet($sheet->name());
-            $innerFile = 'xl/worksheets/sheet' . $sheetId . '.xml';
-            $this->xmlReader->openZip($innerFile);
+            $this->xmlReader->openZip($sheet->path());
             while ($this->xmlReader->read()) {
                 if ($this->xmlReader->nodeType === \XMLReader::ELEMENT && $this->xmlReader->name === 'col') {
                     // <col min="1" max="1" width="20.83203125" customWidth="1"/>
