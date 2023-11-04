@@ -62,6 +62,22 @@ class TableTemplate
     }
 
     /**
+     * @return TableTemplate|null
+     */
+    public function header(): ?TableTemplate
+    {
+        return $this->header;
+    }
+
+    /**
+     * @return TableTemplate|null
+     */
+    public function footer(): ?TableTemplate
+    {
+        return $this->footer;
+    }
+
+    /**
      * @param string $header
      *
      * @return $this
@@ -110,11 +126,12 @@ class TableTemplate
 
     /**
      * @param string|null $colSource
-     * @param $colTarget
+     * @param string|array $colTarget
+     * @param bool|null $checkMerge
      *
      * @return $this
      */
-    public function cloneColumn(?string $colSource, $colTarget): TableTemplate
+    public function cloneColumn(?string $colSource, $colTarget, ?bool $checkMerge = false): TableTemplate
     {
         $colTarget = Helper::colLetterRange($colTarget);
         foreach ($colTarget as $col) {
@@ -128,12 +145,12 @@ class TableTemplate
             }
         }
         if ($colSource) {
-            $this->rowTemplates->cloneCell($colSource, $colTarget);
+            $this->rowTemplates->cloneCell($colSource, $colTarget, $checkMerge);
             if ($this->header) {
-                $this->header->cloneColumn($colSource, $colTarget);
+                $this->header->cloneColumn($colSource, $colTarget, $checkMerge);
             }
             if ($this->footer) {
-                $this->footer->cloneColumn($colSource, $colTarget);
+                $this->footer->cloneColumn($colSource, $colTarget, $checkMerge);
             }
         }
 
@@ -141,14 +158,28 @@ class TableTemplate
     }
 
     /**
-     * @param string|null $colSource
+     * Add additional column to the right
      *
      * @return $this
      */
-    public function appendColumn(?string $colSource = null): TableTemplate
+    public function addColumn(): TableTemplate
     {
         $colTarget = Helper::colLetter($this->tplRangeBody['max_col_num'] + 1);
-        $this->cloneColumn($colSource, $colTarget);
+        $this->cloneColumn(null, $colTarget);
+
+        return $this;
+    }
+
+    /**
+     * Clone last column and add one to the right
+     *
+     * @return $this
+     */
+    public function appendColumn(): TableTemplate
+    {
+        $colSource = Helper::colLetter($this->tplRangeBody['max_col_num']);
+        $colTarget = Helper::colLetter($this->tplRangeBody['max_col_num'] + 1);
+        $this->cloneColumn($colSource, $colTarget, true);
 
         return $this;
     }
@@ -169,7 +200,9 @@ class TableTemplate
     public function writeRow($rowData)
     {
         if (!$this->headerWritten) {
-            $this->header->transferRows();
+            if ($this->header) {
+                $this->header->transferRows();
+            }
             $this->headerWritten = true;
         }
         $row = $this->rowTemplates->next();
@@ -215,9 +248,13 @@ class TableTemplate
         if ($this->sheet->lastReadRowNum < $this->tplRangeBody['min_row_num']) {
             $this->sheet->transferRows($this->tplRangeBody['min_row_num'] - 1);
         }
-        while ($this->sheet->lastReadRowNum < $this->tplRangeBody['max_row_num']) {
+        while ($this->sheet->lastReadRowNum <= $this->tplRangeBody['max_row_num']) {
             $row = $this->rowTemplates->next();
-            $this->sheet->replaceRow($this->sheet->countInsertedRows + 1, $row);
+            $this->sheet->replaceRow($this->sheet->lastReadRowNum, $row);
+            if ($this->sheet->lastReadRowNum >= $this->tplRangeBody['max_row_num']) {
+                break;
+            }
+            $this->sheet->lastReadRowNum++;
         }
     }
 

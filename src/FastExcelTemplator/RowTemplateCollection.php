@@ -9,6 +9,9 @@ class RowTemplateCollection implements \Iterator
     protected int $pointer = 0;
 
 
+    /**
+     * @param array|null $rowData
+     */
     public function __construct(?array $rowData = [])
     {
         if ($rowData) {
@@ -18,21 +21,33 @@ class RowTemplateCollection implements \Iterator
         }
     }
 
-    public function addRowTemplate($row)
+    /**
+     * @param $row
+     * @param int|null $rowNum
+     *
+     * @return void
+     */
+    public function addRowTemplate($row, ?int $rowNum = 0)
     {
-        $this->rowTemplates[] = $row;
+        if ($rowNum) {
+            $this->rowTemplates[$rowNum] = $row;
+        }
+        else {
+            $this->rowTemplates[] = $row;
+        }
     }
 
     /**
      * @param string $colSource
      * @param $colTarget
+     * @param bool|null $checkMerge
      *
      * @return $this
      */
-    public function cloneCell(string $colSource, $colTarget): RowTemplateCollection
+    public function cloneCell(string $colSource, $colTarget, ?bool $checkMerge = false): RowTemplateCollection
     {
         foreach ($this->rowTemplates as $rowTemplate) {
-            $rowTemplate->cloneCell($colSource, $colTarget);
+            $rowTemplate->cloneCell($colSource, $colTarget, $checkMerge);
         }
 
         return $this;

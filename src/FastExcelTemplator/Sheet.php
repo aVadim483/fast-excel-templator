@@ -60,7 +60,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                 if ($xmlReader->name === 'mergeCell') {
                     $range = $xmlReader->getAttribute('ref');
                     if ($range) {
-                        $this->sheetWriter->mergeCells($range);
+                        $this->sheetWriter->mergeCells($range, 2);
                     }
                 }
                 elseif (in_array($xmlReader->name, $tags)) {
@@ -122,6 +122,11 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         return $this;
     }
 
+    /**
+     * @param int $rowNumber
+     *
+     * @return RowTemplate
+     */
     public function getRowTemplate(int $rowNumber): RowTemplate
     {
         if (empty($this->rowTemplates[$rowNumber])) {
@@ -129,7 +134,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
             $xmlReader->openZip($this->path);
             $found = false;
             $rowTemplate = new RowTemplate();
-            $rowAttributes = [];
+
             while ($xmlReader->read()) {
                 if ($xmlReader->nodeType === \XMLReader::ELEMENT && $xmlReader->name === 'row' && (int)$xmlReader->getAttribute('r') === $rowNumber) {
                     $found = true;
@@ -145,6 +150,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                         $cell = $xmlReader->expand();
                         $value = $this->_cellValue($cell, $styleIdx, $formula, $dataType, $originalValue);
                         $cellData = ['v' => $value, 's' => $styleIdx, 'f' => $formula, 't' => $dataType, 'o' => $originalValue, 'x' => $cell];
+                        $cellData['__merged'] = $this->mergedRange($addr);
                         $rowTemplate->addCell($m[1], $cellData);
                     }
                 }
@@ -280,6 +286,11 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         }
         if (isset($cellData['s'])) {
             $this->sheetWriter->_setStyleIdx($cellAddress, $cellData['s'], $numberFormatType);
+        }
+        if (isset($cellData['__merged']) && !Helper::inRange($cellAddress, $cellData['__merged'])) {
+            $oldRange = $cellData['__merged'];
+            $newRange = Helper::addToRange($cellAddress, $cellData['__merged']);
+            $this->sheetWriter->updateMergedCells($oldRange, $newRange);
         }
     }
 

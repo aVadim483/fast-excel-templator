@@ -39,10 +39,11 @@ class RowTemplate implements \Iterator
     /**
      * @param string $colSource
      * @param $colTarget
+     * @param bool|null $checkMerge
      *
      * @return void
      */
-    public function cloneCell(string $colSource, $colTarget)
+    public function cloneCell(string $colSource, $colTarget, ?bool $checkMerge = false)
     {
         if (preg_match('/^([a-z]+)(\d+)/i', $colSource, $m)) {
             $colSource = $m[1];
@@ -56,6 +57,9 @@ class RowTemplate implements \Iterator
                 }
                 else {
                     $cell = $this->domCells[$colSource];
+                    if (!$checkMerge && !empty($cell['__merged'])) {
+                        unset($cell['__merged']);
+                    }
                 }
                 $this->addCell($col, $cell);
             }

@@ -12,17 +12,33 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
     protected array $replace = [];
 
 
+    /**
+     * @param $rowIdx
+     * @param $colIdx
+     * @param $cell
+     *
+     * @return void
+     */
     public function setNode($rowIdx, $colIdx, $cell)
     {
         $this->cells['nodes'][$rowIdx][$colIdx] = $cell;
     }
 
+    /**
+     * @param array $fillData
+     *
+     * @return void
+     */
     public function setFillValues(array $fillData)
     {
         $this->fill = $fillData;
     }
 
-
+    /**
+     * @param array $replaceData
+     *
+     * @return void
+     */
     public function setReplaceValues(array $replaceData)
     {
         $this->replace = [
@@ -78,8 +94,23 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
         return parent::_setCellData($cellAddress, $value, $styles, $merge, $changeCurrent);
     }
 
+    /**
+     * @param $cellAddress
+     * @param $value
+     * @param $styles
+     *
+     * @return void
+     */
     public function _writeToCellByIdx($cellAddress, $value, $styles = null)
     {
         $this->_setCellData($cellAddress, $value, $styles);
+    }
+
+    public function updateMergedCells($oldRange, $newRange)
+    {
+        if (isset($this->mergeCells[$oldRange])) {
+            unset($this->mergeCells[$oldRange]);
+        }
+        $this->mergeCells($newRange);
     }
 }
