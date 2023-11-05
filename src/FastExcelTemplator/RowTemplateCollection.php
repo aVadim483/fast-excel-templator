@@ -6,7 +6,7 @@ class RowTemplateCollection implements \Iterator
 {
     /** @var RowTemplate[]  */
     protected array $rowTemplates = [];
-    protected int $pointer = 0;
+    protected ?int $pointer = null;
 
 
     /**
@@ -15,8 +15,8 @@ class RowTemplateCollection implements \Iterator
     public function __construct(?array $rowData = [])
     {
         if ($rowData) {
-            foreach ($rowData as $row) {
-                $this->addRowTemplate($row);
+            foreach ($rowData as $num => $row) {
+                $this->addRowTemplate($row, $num);
             }
         }
     }
@@ -38,6 +38,18 @@ class RowTemplateCollection implements \Iterator
     }
 
     /**
+     * @param int $rowNum
+     *
+     * @return void
+     */
+    public function delRowTemplate(int $rowNum)
+    {
+        if (isset($this->rowTemplates[$rowNum])) {
+            unset($this->rowTemplates[$rowNum]);
+        }
+    }
+
+    /**
      * @param string $colSource
      * @param $colTarget
      * @param bool|null $checkMerge
@@ -55,30 +67,37 @@ class RowTemplateCollection implements \Iterator
 
     public function current()
     {
-        return $this->rowTemplates[$this->pointer];
+        return current($this->rowTemplates);
     }
 
     public function key()
     {
-        return $this->pointer;
+        return key($this->rowTemplates);
     }
 
     public function next()
     {
-        if ($this->pointer >= count($this->rowTemplates)) {
-            $this->pointer = 0;
+        $result = next($this->rowTemplates);
+        if ($result === false || $this->pointer === null) {
+            $result = reset($this->rowTemplates);
+            $this->pointer = key($this->rowTemplates);
         }
-        return $this->rowTemplates[$this->pointer++];
+
+        return $result;
     }
+
     public function rewind()
     {
-        $this->pointer = 0;
+        $this->pointer = array_key_first($this->rowTemplates);
 
-        return $this->rowTemplates[$this->pointer];
+        return reset($this->rowTemplates);
     }
+
     public function valid(): bool
     {
-        return isset($this->rowTemplates[$this->pointer]);
+        $result = current($this->rowTemplates);
+
+        return !empty($result);
     }
 
 }

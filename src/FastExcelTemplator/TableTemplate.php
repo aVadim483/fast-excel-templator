@@ -6,15 +6,13 @@ use avadim\FastExcelHelper\Helper;
 
 class TableTemplate
 {
+    /** @var array  */
+    public array $tplRange = [];
+
     protected Sheet $sheet;
-    protected array $tplRange = [];
-    protected array $tplRangeBody = [];
-    protected array $tplRangeHeader = [];
-    protected array $tplRangeFooter = [];
-    protected array $trgRange = [];
-    protected ?RowTemplateCollection $rowTemplates;
-    protected ?TableTemplate $header = null;
-    protected ?TableTemplate $footer = null;
+    protected ?TableSection $header = null;
+    protected ?TableSection $body = null;
+    protected ?TableSection $footer = null;
     protected bool $headerWritten = false;
 
     /**
@@ -26,102 +24,58 @@ class TableTemplate
     public function __construct($sheet, string $range, ?string $header = null, ?string $footer = null)
     {
         $this->sheet = $sheet;
-        $this->rowTemplates = new RowTemplateCollection();
-        $this->tplRangeBody = $this->tplRange = $this->_rangeArray($range);
+        $this->body = new TableSection($this->sheet, $range);
+        $this->tplRange = $this->body->tplRange;
         if ($header) {
-            $this->headerRange($header);
+            $this->header = new TableSection($this->sheet, $header);
+            if ($this->body->tplRange['min_row_num'] <= $this->header->tplRange['max_row_num']) {
+                $this->body->tplRange['min_row_num'] = $this->header->tplRange['max_row_num'] + 1;
+            }
+            if ($this->tplRange['min_row_num'] > $this->header->tplRange['min_row_num']) {
+                $this->tplRange['min_row_num'] = $this->header->tplRange['min_row_num'];
+            }
         }
         if ($footer) {
-            $this->footerRange($footer);
+            $this->footer = new TableSection($this->sheet, $footer);
+            if ($this->body->tplRange['max_row_num'] <= $this->footer->tplRange['min_row_num']) {
+                $this->body->tplRange['max_row_num'] = $this->footer->tplRange['min_row_num'] - 1;
+            }
+            if ($this->tplRange['max_row_num'] < $this->header->tplRange['max_row_num']) {
+                $this->tplRange['max_row_num'] = $this->header->tplRange['max_row_num'];
+            }
         }
-        for ($rowNum = $this->tplRangeBody['min_row_num']; $rowNum <= $this->tplRangeBody['max_row_num']; $rowNum++) {
-            $row = $sheet->getRowTemplate($rowNum);
-            $this->rowTemplates->addRowTemplate($row);
+        $rowTemplates = $this->sheet->getRowTemplates($this->tplRange['min_row_num'], $this->tplRange['max_row_num']);
+        if ($this->header) {
+            $this->header->applyRowTemplates($rowTemplates);
+        }
+        $this->body->applyRowTemplates($rowTemplates);
+        if ($this->footer) {
+            $this->footer->applyRowTemplates($rowTemplates);
         }
     }
 
     /**
-     * @param string $range
-     *
-     * @return array
+     * @return TableSection|null
      */
-    protected function _rangeArray(string $range): array
-    {
-        static $rangeArray = [];
-
-        if (isset($rangeArray[$range])) {
-            $result = $rangeArray[$range];
-        }
-        else {
-            $result = Helper::rangeArray($range);
-            $result['col_letters'] = Helper::colLetterRange($result['min_col_letter'] . '-' . $result['max_col_letter']);
-            $rangeArray[$range] = $result;
-        }
-
-        return $result;
-    }
-
-    /**
-     * @return TableTemplate|null
-     */
-    public function header(): ?TableTemplate
+    public function header(): ?TableSection
     {
         return $this->header;
     }
 
     /**
-     * @return TableTemplate|null
+     * @return TableSection|null
      */
-    public function footer(): ?TableTemplate
+    public function body(): ?TableSection
+    {
+        return $this->body;
+    }
+
+    /**
+     * @return TableSection|null
+     */
+    public function footer(): ?TableSection
     {
         return $this->footer;
-    }
-
-    /**
-     * @param string $header
-     *
-     * @return $this
-     */
-    public function headerRange(string $header): TableTemplate
-    {
-        $this->tplRangeHeader = $this->_rangeArray($header);
-        if (!isset($this->tplRangeBody['min_row_num'])) {
-            $this->tplRangeBody = $this->tplRangeHeader;
-            $this->tplRangeBody['min_row_num'] = $this->tplRangeHeader['max_row_num'] + 1;
-        }
-        elseif ($this->tplRangeBody['min_row_num'] <= $this->tplRangeHeader['max_row_num']) {
-            $this->tplRangeBody['min_row_num'] = $this->tplRangeHeader['max_row_num'] + 1;
-        }
-        $this->header = new TableTemplate($this->sheet, $header);
-
-        return $this;
-    }
-
-    /**
-     * @param string $footer
-     *
-     * @return $this
-     */
-    public function footerRange(string $footer): TableTemplate
-    {
-        $this->tplRangeFooter = $this->_rangeArray($footer);
-        if (!isset($this->tplRangeBody['max_row_num'])) {
-            $this->tplRangeBody = $this->tplRangeFooter;
-            $this->tplRangeBody['max_row_num'] = $this->tplRangeFooter['min_row_num'] - 1;
-        }
-        elseif ($this->tplRangeBody['max_row_num'] >= $this->tplRangeFooter['min_row_num']) {
-            $this->tplRangeBody['max_row_num'] = $this->tplRangeFooter['min_row_num'] - 1;
-        }
-        $this->footer = new TableTemplate($this->sheet, $footer);
-
-        return $this;
-    }
-
-    public function _appendCol($colLetter, &$range)
-    {
-        $range['max_col_letter'] = $colLetter;
-        $range['max_cell'] = $colLetter . $range['max_row_num'];
-        $range['col_letters'][] = $colLetter;
     }
 
     /**
@@ -134,24 +88,14 @@ class TableTemplate
     public function cloneColumn(?string $colSource, $colTarget, ?bool $checkMerge = false): TableTemplate
     {
         $colTarget = Helper::colLetterRange($colTarget);
-        foreach ($colTarget as $col) {
-            $this->_appendCol($col, $this->tplRange);
-            $this->_appendCol($col, $this->tplRangeBody);
-            if ($this->tplRangeHeader) {
-                $this->_appendCol($col, $this->tplRangeBody);
-            }
-            if ($this->tplRangeFooter) {
-                $this->_appendCol($col, $this->tplRangeFooter);
-            }
+        if ($this->header) {
+            $this->header->cloneColumn($colSource, $colTarget, $checkMerge);
         }
-        if ($colSource) {
-            $this->rowTemplates->cloneCell($colSource, $colTarget, $checkMerge);
-            if ($this->header) {
-                $this->header->cloneColumn($colSource, $colTarget, $checkMerge);
-            }
-            if ($this->footer) {
-                $this->footer->cloneColumn($colSource, $colTarget, $checkMerge);
-            }
+        if ($this->body) {
+            $this->body->cloneColumn($colSource, $colTarget, $checkMerge);
+        }
+        if ($this->footer) {
+            $this->footer->cloneColumn($colSource, $colTarget, $checkMerge);
         }
 
         return $this;
@@ -160,12 +104,21 @@ class TableTemplate
     /**
      * Add additional column to the right
      *
+     * @param int|null $num
+     *
      * @return $this
      */
-    public function addColumn(): TableTemplate
+    public function addColumn(?int $num = 1): TableTemplate
     {
-        $colTarget = Helper::colLetter($this->tplRangeBody['max_col_num'] + 1);
-        $this->cloneColumn(null, $colTarget);
+        if ($this->header) {
+            $this->header->addColumn($num);
+        }
+        if ($this->body) {
+            $this->body->addColumn($num);
+        }
+        if ($this->footer) {
+            $this->footer->addColumn($num);
+        }
 
         return $this;
     }
@@ -175,21 +128,19 @@ class TableTemplate
      *
      * @return $this
      */
-    public function appendColumn(): TableTemplate
+    public function appendColumn(?int $num = 1): TableTemplate
     {
-        $colSource = Helper::colLetter($this->tplRangeBody['max_col_num']);
-        $colTarget = Helper::colLetter($this->tplRangeBody['max_col_num'] + 1);
-        $this->cloneColumn($colSource, $colTarget, true);
+        if ($this->header) {
+            $this->header->appendColumn($num);
+        }
+        if ($this->body) {
+            $this->body->appendColumn($num);
+        }
+        if ($this->footer) {
+            $this->footer->appendColumn($num);
+        }
 
         return $this;
-    }
-
-    /**
-     * @return RowTemplate|void
-     */
-    public function nextRowTemplate()
-    {
-        return $this->rowTemplates->next();
     }
 
     /**
@@ -205,32 +156,7 @@ class TableTemplate
             }
             $this->headerWritten = true;
         }
-        $row = $this->rowTemplates->next();
-        $cnt1 = count($this->tplRangeBody['col_letters']);
-        $cnt2 = count($rowData);
-        if ($cnt1 > $cnt2) {
-            $idx = array_slice($this->tplRangeBody['col_letters'], 0, $cnt2);
-            $rowData = array_combine($idx, array_values($rowData));
-        }
-        elseif ($cnt1 < $cnt2) {
-            $val = array_slice($rowData, 0, $cnt1);
-            $rowData = array_combine($this->tplRangeBody['col_letters'], $val);
-        }
-        else {
-            $rowData = array_combine($this->tplRangeBody['col_letters'], array_values($rowData));
-        }
-        if (!$this->trgRange) {
-            $this->sheet->replaceRow($this->tplRangeBody['min_row_num'], $row, $rowData);
-            $this->trgRange = $this->tplRangeBody;
-            $this->trgRange['max_row_num'] = $this->trgRange['min_row_num'];
-        }
-        elseif ($this->trgRange['max_row_num'] < $this->tplRangeBody['max_row_num']) {
-            $this->sheet->replaceRow(++$this->trgRange['max_row_num'], $row, $rowData);
-        }
-        else {
-            $this->sheet->insertRow(++$this->trgRange['max_row_num'], $row, $rowData);
-        }
-        $this->trgRange['max_cell'] = $this->trgRange['max_col_num'] . $this->trgRange['max_row_num'];
+        $this->body->writeRow($rowData);
     }
 
     public function writeRowArray($rowData)
@@ -245,16 +171,14 @@ class TableTemplate
 
     public function transferRows()
     {
-        if ($this->sheet->lastReadRowNum < $this->tplRangeBody['min_row_num']) {
-            $this->sheet->transferRows($this->tplRangeBody['min_row_num'] - 1);
+        if ($this->header) {
+            $this->header->transferRows();
         }
-        while ($this->sheet->lastReadRowNum <= $this->tplRangeBody['max_row_num']) {
-            $row = $this->rowTemplates->next();
-            $this->sheet->replaceRow($this->sheet->lastReadRowNum, $row);
-            if ($this->sheet->lastReadRowNum >= $this->tplRangeBody['max_row_num']) {
-                break;
-            }
-            $this->sheet->lastReadRowNum++;
+        if ($this->body) {
+            $this->body->transferRows();
+        }
+        if ($this->footer) {
+            $this->footer->transferRows();
         }
     }
 

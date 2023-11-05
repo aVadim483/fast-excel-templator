@@ -137,37 +137,64 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      */
     public function getRowTemplate(int $rowNumber): RowTemplate
     {
-        if (empty($this->rowTemplates[$rowNumber])) {
+        $rowTemplates = $this->getRowTemplates($rowNumber, $rowNumber);
+
+        return $rowTemplates[$rowNumber];
+    }
+
+    /**
+     * @param int $rowNumberMin
+     * @param int $rowNumberMax
+     *
+     * @return array
+     */
+    public function getRowTemplates(int $rowNumberMin, int $rowNumberMax): array
+    {
+        $findNum = [];
+        for ($rowNum = $rowNumberMin; $rowNum <= $rowNumberMax; $rowNum++) {
+            if (!isset($this->rowTemplates[$rowNum])) {
+                $findNum[$rowNum] = $rowNum;
+            }
+        }
+        if ($findNum) {
             $xmlReader = $this->getReader();
             $xmlReader->openZip($this->path);
-            $found = false;
-            $rowTemplate = new RowTemplate();
 
             while ($xmlReader->read()) {
-                if ($xmlReader->nodeType === \XMLReader::ELEMENT && $xmlReader->name === 'row' && (int)$xmlReader->getAttribute('r') === $rowNumber) {
-                    $found = true;
-                    $rowTemplate->setAttributes($xmlReader->getAllAttributes());
-                    continue;
-                }
-                if ($xmlReader->nodeType === \XMLReader::END_ELEMENT && $xmlReader->name === 'row' && $found) {
-                    break;
-                }
-                if ($xmlReader->nodeType === \XMLReader::ELEMENT && $xmlReader->name === 'c') {
-                    $addr = $xmlReader->getAttribute('r');
-                    if ($addr && preg_match('/^([A-Za-z]+)(\d+)$/', $addr, $m)) {
-                        $cell = $xmlReader->expand();
-                        $value = $this->_cellValue($cell, $styleIdx, $formula, $dataType, $originalValue);
-                        $cellData = ['v' => $value, 's' => $styleIdx, 'f' => $formula, 't' => $dataType, 'o' => $originalValue, 'x' => $cell];
-                        $cellData['__merged'] = $this->mergedRange($addr);
-                        $rowTemplate->addCell($m[1], $cellData);
+                if ($xmlReader->nodeType === \XMLReader::ELEMENT && $xmlReader->name === 'row') {
+                    $r = (int)$xmlReader->getAttribute('r');
+                    if (isset($findNum[$r])) {
+                        $rowTemplate = new RowTemplate();
+                        $rowTemplate->setAttributes($xmlReader->getAllAttributes());
+                        while ($xmlReader->read() && !($xmlReader->nodeType === \XMLReader::END_ELEMENT && $xmlReader->name === 'row')) {
+                            if ($xmlReader->nodeType === \XMLReader::ELEMENT && $xmlReader->name === 'c') {
+                                $addr = $xmlReader->getAttribute('r');
+                                if ($addr && preg_match('/^([A-Za-z]+)(\d+)$/', $addr, $m)) {
+                                    $cell = $xmlReader->expand();
+                                    $value = $this->_cellValue($cell, $styleIdx, $formula, $dataType, $originalValue);
+                                    $cellData = ['v' => $value, 's' => $styleIdx, 'f' => $formula, 't' => $dataType, 'o' => $originalValue, 'x' => $cell];
+                                    $cellData['__merged'] = $this->mergedRange($addr);
+                                    $rowTemplate->addCell($m[1], $cellData);
+                                }
+                            }
+                        }
+                        unset($findNum[$r]);
+                        $this->rowTemplates[$r] = $rowTemplate;
                     }
                 }
+                if (!$findNum) {
+                    break;
+                }
             }
-            $this->rowTemplates[$rowNumber] = $rowTemplate;
         }
-        $this->lastTouchRowNum = $rowNumber;
+        $result = [];
+        for ($rowNum = $rowNumberMin; $rowNum <= $rowNumberMax; $rowNum++) {
+            $result[$rowNum] = clone $this->rowTemplates[$rowNum];
+        }
 
-        return clone $this->rowTemplates[$rowNumber];
+        $this->lastTouchRowNum = $rowNumberMax;
+
+        return $result;
     }
 
     /**
@@ -343,8 +370,24 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
     public function table(string $range, ?string $header = null, ?string $footer = null): TableTemplate
     {
         $table = new TableTemplate($this, $range, $header, $footer);
-        $this->tables[] = $table;
+        $this->tables[$table->tplRange['min_row_num']] = $table;
 
         return $table;
+    }
+
+
+    public function saveSheet()
+    {
+        if ($this->tables) {
+            ksort($this->tables);
+            /**
+             * @var int $tableRowBegin
+             * @var TableTemplate $table
+             */
+            foreach ($this->tables as $table) {
+                $table->transferRows();
+            }
+        }
+        //$this->transferRows();
     }
 }

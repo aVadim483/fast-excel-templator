@@ -175,7 +175,8 @@ class Excel extends ExcelReader
             @unlink($fileName);
         }
         foreach ($this->sheets as $sheet) {
-            $sheet->transferRows();
+            //$sheet->transferRows();
+            $sheet->saveSheet();
         }
 
         return $this->excelWriter->replaceSheets($this->file, $fileName);

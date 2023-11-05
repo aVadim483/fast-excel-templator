@@ -111,6 +111,6 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
         if (isset($this->mergeCells[$oldRange])) {
             unset($this->mergeCells[$oldRange]);
         }
-        $this->mergeCells($newRange);
+        $this->mergeCells($newRange, 1);
     }
 }
