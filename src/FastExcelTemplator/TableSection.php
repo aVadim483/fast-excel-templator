@@ -188,4 +188,31 @@ class TableSection
         $this->sheet->transferRows($this->tplRange['max_row_num'], true);
     }
 
+    /**
+     * @return array
+     */
+    public function getColumns(): array
+    {
+        return $this->tplRange['col_letters'];
+    }
+
+    /**
+     * @param string $columns
+     *
+     * @return string
+     */
+    public function colToRange(string $columns): string
+    {
+        if (preg_match('/^[a-z]+$/i', $columns)) {
+            $colLetterMin = $colLetterMax = strtoupper($columns);
+        }
+        else {
+            $arr = Helper::rangeArray($columns);
+            $colLetterMin = $arr['min_col_letter'];
+            $colLetterMax = $arr['max_col_letter'];
+        }
+
+        return $colLetterMin . $this->trgRange['min_row_num'] . ':' . $colLetterMax . $this->trgRange['max_row_num'];
+    }
+
 }

@@ -159,27 +159,33 @@ class TableTemplate
         $this->body->writeRow($rowData);
     }
 
-    public function writeRowArray($rowData)
-    {
-
-    }
-
-    public function writeRowPattern($rowData)
-    {
-
-    }
 
     public function transferRows()
     {
         if ($this->header) {
             $this->header->transferRows();
         }
-        if ($this->body) {
-            $this->body->transferRows();
-        }
+        $this->body->transferRows();
         if ($this->footer) {
             $this->footer->transferRows();
         }
     }
 
+    /**
+     * @return array
+     */
+    public function getColumns(): array
+    {
+        return $this->body->getColumns();
+    }
+
+    /**
+     * @param string $columns
+     *
+     * @return string
+     */
+    public function colToRange(string $columns): string
+    {
+        return $this->body->colToRange($columns);
+    }
 }
