@@ -27,7 +27,7 @@ class ExcelWriter extends \avadim\FastExcelWriter\Excel
      *
      * @return bool
      */
-    public function replaceSheets($inputFile, $outputFile): bool
+    public function replaceSheetsAndSave($inputFile, $outputFile): bool
     {
         $relationShips = [
             'rel_id' => ['workbook' => 0],

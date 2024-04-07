@@ -43,8 +43,8 @@ $list = [
 
 // Replace strings and substrings on the sheet
 $sheet
-    ->fill($fillData)
-    ->replace($replaceData)
+    ->fillValues($fillData)
+    ->replaceValues($replaceData)
 ;
 
 // Get the specified row (number 6) as a template

@@ -113,4 +113,12 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
         }
         $this->mergeCells($newRange, 1);
     }
+
+    /**
+     * @return int
+     */
+    public function currentRowNum(): int
+    {
+        return $this->currentRowIdx + 1;
+    }
 }

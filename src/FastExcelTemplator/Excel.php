@@ -136,10 +136,10 @@ class Excel extends ExcelReader
      *
      * @return $this
      */
-    public function fill(array $params): Excel
+    public function fillValues(array $params): Excel
     {
         foreach ($this->sheets as $sheet) {
-            $sheet->fill($params);
+            $sheet->fillValues($params);
         }
 
         return $this;
@@ -150,10 +150,10 @@ class Excel extends ExcelReader
      *
      * @return $this
      */
-    public function replace(array $params): Excel
+    public function replaceValues(array $params): Excel
     {
         foreach ($this->sheets as $sheet) {
-            $sheet->replace($params);
+            $sheet->replaceValues($params);
         }
         return $this;
     }
@@ -179,7 +179,7 @@ class Excel extends ExcelReader
             $sheet->saveSheet();
         }
 
-        return $this->excelWriter->replaceSheets($this->file, $fileName);
+        return $this->excelWriter->replaceSheetsAndSave($this->file, $fileName);
     }
 
     /**

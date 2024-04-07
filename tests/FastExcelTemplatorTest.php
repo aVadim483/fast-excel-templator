@@ -48,8 +48,8 @@ final class FastExcelTemplatorTest extends TestCase
         ];
 
         $sheet
-            ->fill($fillData)
-            ->replace($replaceData)
+            ->fillValues($fillData)
+            ->replaceValues($replaceData)
         ;
         $rowTemplate = $sheet->getRowTemplate(6);
         $count = 0;
