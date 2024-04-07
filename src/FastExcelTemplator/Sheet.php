@@ -204,7 +204,6 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      */
     public function insertRow(int $rowNumber, $row, ?array $cellData = [])
     {
-echo ' insertRow(' . $rowNumber . ') <br>';
         $this->transferRows($rowNumber - 1 - $this->countInsertedRows);
         if (is_array($row)) {
             $cellData = $row;
@@ -342,7 +341,6 @@ echo ' insertRow(' . $rowNumber . ') <br>';
      */
     public function transferRows(?int $maxRowNum = null, ?bool $idle = false)
     {
-echo "transferRows($maxRowNum)<br>";
         if ($maxRowNum === null || $maxRowNum > $this->lastReadRowNum) {
             foreach ($this->readRow() as $rowNum => $rowData) {
                 if (!$idle && (!$maxRowNum || $rowNum <= $maxRowNum)) {
