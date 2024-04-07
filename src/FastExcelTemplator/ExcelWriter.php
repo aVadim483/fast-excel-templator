@@ -55,6 +55,7 @@ class ExcelWriter extends \avadim\FastExcelWriter\Excel
             }
 
             $zip->close();
+            $this->saved = true;
         }
 
         return $result;
