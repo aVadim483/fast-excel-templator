@@ -65,16 +65,19 @@ class RowTemplateCollection implements \Iterator
         return $this;
     }
 
+    #[\ReturnTypeWillChange]
     public function current()
     {
         return current($this->rowTemplates);
     }
 
+    #[\ReturnTypeWillChange]
     public function key()
     {
         return key($this->rowTemplates);
     }
 
+    #[\ReturnTypeWillChange]
     public function next()
     {
         $result = next($this->rowTemplates);
@@ -86,6 +89,7 @@ class RowTemplateCollection implements \Iterator
         return $result;
     }
 
+    #[\ReturnTypeWillChange]
     public function rewind()
     {
         $this->pointer = array_key_first($this->rowTemplates);

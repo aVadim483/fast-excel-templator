@@ -158,15 +158,15 @@ class TableSection
             $rowData = array_combine($this->tplRange['col_letters'], array_values($rowData));
         }
         if (!$this->trgRange) {
-            $this->sheet->replaceRow($this->tplRange['min_row_num'], $row, $rowData);
+            $this->sheet->replaceRow($row, $rowData);
             $this->trgRange = $this->tplRange;
             $this->trgRange['max_row_num'] = $this->trgRange['min_row_num'];
         }
         elseif ($this->trgRange['max_row_num'] < $this->tplRange['max_row_num']) {
-            $this->sheet->replaceRow(++$this->trgRange['max_row_num'], $row, $rowData);
+            $this->sheet->replaceRow($row, $rowData);
         }
         else {
-            $this->sheet->insertRow(++$this->trgRange['max_row_num'], $row, $rowData);
+            $this->sheet->insertRow($row, $rowData);
         }
         $this->trgRange['max_cell'] = $this->trgRange['max_col_letter'] . $this->trgRange['max_row_num'];
     }
@@ -175,17 +175,17 @@ class TableSection
     public function transferRows()
     {
         if ($this->sheet->lastReadRowNum < $this->tplRange['min_row_num'] - 1) {
-            $this->sheet->transferRows($this->tplRange['min_row_num'] - 1);
+            $this->sheet->transferRowsUntil($this->tplRange['min_row_num'] - 1);
         }
         while ($this->sheet->lastReadRowNum < $this->tplRange['max_row_num']) {
             $row = $this->rowTemplates->next();
             $this->sheet->lastReadRowNum = $row->attribute('r');
-            $this->sheet->replaceRow($this->sheet->lastReadRowNum + $this->sheet->countInsertedRows, $row);
+            $this->sheet->replaceRow($row);
             if ($this->sheet->lastReadRowNum >= $this->tplRange['max_row_num']) {
                 break;
             }
         }
-        $this->sheet->transferRows($this->tplRange['max_row_num'], true);
+        $this->sheet->transferRowsUntil($this->tplRange['max_row_num'], true);
     }
 
     /**

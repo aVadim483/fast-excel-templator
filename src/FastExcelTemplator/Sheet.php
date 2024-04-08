@@ -346,15 +346,14 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      * Transfers rows from template to output
      *
      * @param int|null $maxRowNum Max row of template
-     * @param bool|null $idle
      *
-     * @return void
+     * @return Sheet
      */
-    public function transferRows(?int $maxRowNum = null, ?bool $idle = false)
+    public function transferRowsUntil(?int $maxRowNum = null): Sheet
     {
         if ($maxRowNum === null || $maxRowNum > $this->lastReadRowNum) {
             foreach ($this->readRow() as $rowNum => $rowData) {
-                if (!$idle && (!$maxRowNum || $rowNum <= $maxRowNum)) {
+                if (!$maxRowNum || $rowNum <= $maxRowNum) {
                     $rowNumOut = $this->sheetWriter->currentRowNum();
                     if (isset($rowData['__row']['ht'])) {
                         $this->sheetWriter->setRowHeight($rowNumOut, $rowData['__row']['ht']);
@@ -371,6 +370,50 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                 }
             }
         }
+        return $this;
+    }
+
+    /**
+     * Transfers rows from template to output
+     *
+     * @param int|null $countRows Number of rows
+     *
+     * @return Sheet
+     */
+    public function transferRows(?int $countRows = null): Sheet
+    {
+        return $this->transferRowsUntil($countRows ? ($this->lastReadRowNum + $countRows) : null);
+    }
+
+    /**
+     * Skip rows from template
+     *
+     * @param int|null $maxRowNum Max row of template
+     *
+     * @return Sheet
+     */
+    public function skipRowsUntil(?int $maxRowNum = null): Sheet
+    {
+        if ($maxRowNum === null || $maxRowNum > $this->lastReadRowNum) {
+            foreach ($this->readRow() as $rowNum => $rowData) {
+                if ($maxRowNum !== null && !empty($rowNum) && ($rowNum >= $maxRowNum)) {
+                    break;
+                }
+            }
+        }
+        return $this;
+    }
+
+    /**
+     * Skip rows from template
+     *
+     * @param int|null $countRows Number of rows
+     *
+     * @return Sheet
+     */
+    public function skipRows(?int $countRows = null): Sheet
+    {
+        return $this->skipRowsUntil($countRows ? ($this->lastReadRowNum + $countRows) : null);
     }
 
     /**
@@ -401,6 +444,5 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                 $table->transferRows();
             }
         }
-        //$this->transferRows();
     }
 }
