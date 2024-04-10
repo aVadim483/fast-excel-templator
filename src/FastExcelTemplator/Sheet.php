@@ -16,7 +16,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
 
     public int $countInsertedRows = 0;
 
-    protected int $rowOffset;
+    protected int $topRowOffset;
     protected array $fillValues = [];
     protected array $replaceValues = [];
     protected array $rowTemplates = [];
@@ -25,6 +25,8 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
     protected ?\Generator $readGenerator = null;
 
     protected array $tables = [];
+    protected array $refCells = [];
+    protected array $sortedMergedCells = [];
 
 
     public function __construct($sheetName, $sheetId, $file, $path, $excel)
@@ -34,7 +36,14 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         $this->postReadFunc = [$this, 'postRead'];
         // init dimension array
         $this->dimension();
-        $this->rowOffset = $this->dimension['min_row_num'] - 1;
+        $this->topRowOffset = $this->dimension['min_row_num'] - 1;
+        foreach ($this->getMergedCells() as $cell => $range) {
+            $cellArr = Helper::rangeArray($cell);
+            $this->sortedMergedCells[$cellArr['min_row_num']][$cell] = $range;
+        }
+        if ($this->sortedMergedCells) {
+            ksort($this->sortedMergedCells);
+        }
     }
 
     /**
@@ -68,16 +77,10 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
 
     public function postRead($xmlReader)
     {
-        $tags = ['pageMargins', 'pageSetup', 'drawing', 'legacyDrawing'];
+        $tags = ['pageSetup', 'drawing', 'legacyDrawing'];
         while ($xmlReader->read()) {
             if ($xmlReader->nodeType === \XMLReader::ELEMENT) {
-                if ($xmlReader->name === 'mergeCell') {
-                    $range = $xmlReader->getAttribute('ref');
-                    if ($range) {
-                        $this->sheetWriter->mergeCells($range, 2);
-                    }
-                }
-                elseif (in_array($xmlReader->name, $tags)) {
+                if (in_array($xmlReader->name, $tags)) {
                     $options = $xmlReader->getAllAttributes();
                     if ($options) {
                         $this->sheetWriter->setBottomNodesOptions($xmlReader->name, $options);
@@ -137,6 +140,36 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
     }
 
     /**
+     * Returns the rel range of merged cells that contains the specified cell
+     *
+     * @param string $cellAddress
+     *
+     * @return string|null
+     */
+    public function mergedRange(string $cellAddress): ?string
+    {
+        $result = parent::mergedRange($cellAddress);
+        if ($result && strpos($result, $cellAddress . ':') === 0) {
+            $adr = Helper::rangeArray($cellAddress);
+            $dim = Helper::rangeArray($result);
+            $rowOffset1 = $dim['min_row_num'] - $adr['min_row_num'];
+            $colOffset1 = $dim['min_col_num'] - $adr['min_col_num'];
+            $rowOffset2 = $dim['max_row_num'] - $adr['min_row_num'];
+            $colOffset2 = $dim['max_col_num'] - $adr['min_col_num'];
+            $result = 'R' . (($rowOffset1 >= 0) ? $rowOffset1 : '[' . $rowOffset1 . ']')
+                . 'C' . (($colOffset1 >= 0) ? $colOffset1 : '[' . $colOffset1 . ']') . ':'
+                . 'R' . (($rowOffset2 >= 0) ? $rowOffset2 : '[' . $rowOffset2 . ']')
+                . 'C' . (($colOffset2 >= 0) ? $colOffset2 : '[' . $colOffset2 . ']');
+
+        }
+        else {
+            $result = null;
+        }
+
+        return $result;
+    }
+
+    /**
      * @param int $rowNumber
      *
      * @return RowTemplate
@@ -152,9 +185,9 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      * @param int $rowNumberMin
      * @param int $rowNumberMax
      *
-     * @return array
+     * @return RowTemplateCollection
      */
-    public function getRowTemplates(int $rowNumberMin, int $rowNumberMax): array
+    public function getRowTemplates(int $rowNumberMin, int $rowNumberMax): RowTemplateCollection
     {
         $findNum = [];
         for ($rowNum = $rowNumberMin; $rowNum <= $rowNumberMax; $rowNum++) {
@@ -179,6 +212,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                                     $cell = $xmlReader->expand();
                                     $value = $this->_cellValue($cell, $styleIdx, $formula, $dataType, $originalValue);
                                     $cellData = ['v' => $value, 's' => $styleIdx, 'f' => $formula, 't' => $dataType, 'o' => $originalValue, 'x' => $cell];
+                                    $cellData['__address'] = $addr;
                                     $cellData['__merged'] = $this->mergedRange($addr);
                                     $rowTemplate->addCell($m[1], $cellData);
                                 }
@@ -193,29 +227,32 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                 }
             }
         }
-        $result = [];
+
+        $rows = [];
         for ($rowNum = $rowNumberMin; $rowNum <= $rowNumberMax; $rowNum++) {
-            $result[$rowNum] = clone $this->rowTemplates[$rowNum];
+            $rows[$rowNum] = clone $this->rowTemplates[$rowNum];
         }
 
         $this->lastTouchRowNum = $rowNumberMax;
 
-        return $result;
+        return new RowTemplateCollection($rows);
     }
 
     /**
-     * @param mixed $row
+     * @param array|RowTemplateCollection|RowTemplate $row
      * @param array|null $cellData
      */
     public function insertRow($row, ?array $cellData = [])
     {
         if (is_array($row)) {
             $cellData = $row;
-            $row = new RowTemplate($cellData);
+            $row = new RowTemplate();
         }
-        elseif ($cellData) {
-            $row->setValues($cellData);
+        elseif ($row instanceof RowTemplateCollection) {
+            $row = $row->next();
         }
+        $row->setValues($cellData);
+
         $rowNumber = $this->sheetWriter->currentRowNum();
         $rowHeight = ($row instanceof RowTemplate) ? $row->attribute('ht') : null;
         if ($rowHeight !== null) {
@@ -232,14 +269,12 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                         $this->sheetWriter->_setStyleIdx($cellAddress, (int)$styleId);
                     }
                 }
-                ///$this->sheetWriter->writeTo($cellAddress, $value);
                 $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $value);
             }
             elseif (is_array($cell)) {
                 $this->_writeWithStyle($cellAddress, $cellAddressIdx, $cell);
             }
             else {
-                ///$this->sheetWriter->writeTo($cellAddress, null);
                 $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, null);
             }
         }
@@ -281,6 +316,11 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         }
         while ($rowNum = $this->readGenerator->key()) {
             $cellData = $this->readGenerator->current();
+            foreach ($cellData['__cells'] as $col => $data) {
+                if (isset($this->sortedMergedCells[$rowNum]) && ($merged = $this->mergedRange($col . $rowNum))) {
+                    $cellData['__cells'][$col]['__merged'] = $merged;
+                }
+            }
             $this->readGenerator->next();
             $this->lastReadRowNum = $rowNum;
             yield $rowNum => $cellData;
@@ -312,7 +352,6 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
     {
         $numberFormatType = null;
         if ($cellData['t'] === 'date' && is_numeric($cellData['o'])) {
-            ///$this->sheetWriter->writeTo($cellAddress, $cellData['o']);
             $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellData['o']);
             $numberFormatType = 'n_auto';
         }
@@ -323,22 +362,19 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         else {
             if ($cellData['t'] === 'date') {
                 $pattern = $this->excel->getDateFormatPattern($cellData['s']);
-                ///$this->sheetWriter->writeTo($cellAddress, $cellData['v'], ['format' => $pattern]);
                 $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellData['v'], ['format' => $pattern]);
                 $numberFormatType = 'n_date';
             }
             else {
-                ///$this->sheetWriter->writeTo($cellAddress, $cellData['v']);
                 $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellData['v']);
             }
         }
         if (isset($cellData['s'])) {
             $this->sheetWriter->_setStyleIdx($cellAddress, $cellData['s'], $numberFormatType);
         }
-        if (isset($cellData['__merged']) && !Helper::inRange($cellAddress, $cellData['__merged'])) {
-            $oldRange = $cellData['__merged'];
-            $newRange = Helper::addToRange($cellAddress, $cellData['__merged']);
-            $this->sheetWriter->updateMergedCells($oldRange, $newRange);
+        if (isset($cellData['__merged'])) {
+            $mergedRange = Helper::addToRange($cellAddress, $cellData['__merged']);
+            $this->sheetWriter->mergeCells($mergedRange, 1);
         }
     }
 
