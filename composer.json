@@ -28,9 +28,9 @@
         "ext-intl": "*",
         "ext-xmlreader": "*",
         "ext-dom": "*",
-        "avadim/fast-excel-helper": "^1.0.3",
-        "avadim/fast-excel-writer": "^4.8",
-        "avadim/fast-excel-reader": "^2.12"
+        "avadim/fast-excel-helper": "^1.1",
+        "avadim/fast-excel-writer": "^5.1",
+        "avadim/fast-excel-reader": "^2.15"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.0"

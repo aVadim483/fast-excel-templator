@@ -93,22 +93,38 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
 
     /**
      * @param $cell
-     * @param $styleIdx
-     * @param $formula
-     * @param $dataType
-     * @param $originalValue
+     * @param array|null $additionalData
      *
      * @return mixed
      */
-    protected function _cellValue($cell, &$styleIdx = null, &$formula = null, &$dataType = null, &$originalValue = null)
+    protected function _cellValue($cell, &$additionalData = [])
     {
-        $result = parent::_cellValue($cell, $styleIdx, $formula, $dataType, $originalValue);
+        $result = parent::_cellValue($cell, $additionalData);
         $address = $cell->attributes['r']->value;
         $colIdx = Helper::colNumber($address) - 1;
         $rowIdx = Helper::rowNumber($address) - 1;
         $this->sheetWriter->setNode($rowIdx, $colIdx, $cell);
 
         return $result;
+    }
+
+    /**
+     * @param $node
+     *
+     * @return string
+     */
+    protected function _cellFormula($node): string
+    {
+        $formula = parent::_cellFormula($node);
+        $ref = (string)$node->getAttribute('ref');
+        if (preg_match_all('/[A-Z]+\d+/', $formula, $m)) {
+            $replacement = [];
+            foreach ($m[0] as $addr) {
+                $replacement[$addr] = Helper::A1toRC($addr, $ref);
+            }
+            $formula = str_replace(array_keys($replacement), array_values($replacement), $formula);
+        }
+        return $formula;
     }
 
     /**
@@ -171,23 +187,25 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
 
     /**
      * @param int $rowNumber
+     * @param bool|int $skip
      *
      * @return RowTemplate
      */
-    public function getRowTemplate(int $rowNumber): RowTemplate
+    public function getRowTemplate(int $rowNumber, ?bool $skip = false): RowTemplate
     {
-        $rowTemplates = $this->getRowTemplates($rowNumber, $rowNumber);
+        $rowTemplates = $this->getRowTemplates($rowNumber, $rowNumber, $skip);
 
-        return $rowTemplates[$rowNumber];
+        return $rowTemplates->current();
     }
 
     /**
      * @param int $rowNumberMin
      * @param int $rowNumberMax
+     * @param bool|int $skip
      *
      * @return RowTemplateCollection
      */
-    public function getRowTemplates(int $rowNumberMin, int $rowNumberMax): RowTemplateCollection
+    public function getRowTemplates(int $rowNumberMin, int $rowNumberMax, ?bool $skip = false): RowTemplateCollection
     {
         $findNum = [];
         for ($rowNum = $rowNumberMin; $rowNum <= $rowNumberMax; $rowNum++) {
@@ -210,8 +228,8 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                                 $addr = $xmlReader->getAttribute('r');
                                 if ($addr && preg_match('/^([A-Za-z]+)(\d+)$/', $addr, $m)) {
                                     $cell = $xmlReader->expand();
-                                    $value = $this->_cellValue($cell, $styleIdx, $formula, $dataType, $originalValue);
-                                    $cellData = ['v' => $value, 's' => $styleIdx, 'f' => $formula, 't' => $dataType, 'o' => $originalValue, 'x' => $cell];
+                                    $value = $this->_cellValue($cell, $additionalData);
+                                    $cellData = $additionalData;
                                     $cellData['__address'] = $addr;
                                     $cellData['__merged'] = $this->mergedRange($addr);
                                     $rowTemplate->addCell($m[1], $cellData);
@@ -234,6 +252,9 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         }
 
         $this->lastTouchRowNum = $rowNumberMax;
+        if ($skip) {
+            $this->skipRowsUntil($rowNumberMax);
+        }
 
         return new RowTemplateCollection($rows);
     }
