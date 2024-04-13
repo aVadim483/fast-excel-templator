@@ -2,8 +2,11 @@
 
 namespace avadim\FastExcelTemplator;
 
+use avadim\FastExcelHelper\Helper;
+
 class RowTemplateCollection implements \Iterator
 {
+    protected Sheet $sheet;
     /** @var RowTemplate[]  */
     protected array $rowTemplates = [];
     protected ?int $pointer = null;
@@ -19,6 +22,11 @@ class RowTemplateCollection implements \Iterator
                 $this->addRowTemplate($row, $num);
             }
         }
+    }
+
+    public function setSheet($sheet)
+    {
+        $this->sheet = $sheet;
     }
 
     /**
@@ -60,6 +68,11 @@ class RowTemplateCollection implements \Iterator
     {
         foreach ($this->rowTemplates as $rowTemplate) {
             $rowTemplate->cloneCell($colSource, $colTarget, $checkMerge);
+        }
+        $sourceColIdx = Helper::colIndex($colSource);
+        $colAttributes = $this->sheet->sheetWriter->getColAttributes();
+        if (isset($colAttributes[$sourceColIdx]['width'])) {
+            $this->sheet->sheetWriter->setColWidth($colTarget, $colAttributes[$sourceColIdx]['width']);
         }
 
         return $this;

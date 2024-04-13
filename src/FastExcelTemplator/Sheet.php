@@ -24,9 +24,10 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
 
     protected ?\Generator $readGenerator = null;
 
-    protected array $tables = [];
-    protected array $refCells = [];
     protected array $sortedMergedCells = [];
+
+    protected ?Reader $rowTemplateReader = null;
+    protected int $rowTemplateNo = 0;
 
 
     public function __construct($sheetName, $sheetId, $file, $path, $excel)
@@ -109,22 +110,36 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
     }
 
     /**
+     * Convert A1 addresses to RC in formula
+     *
      * @param $node
+     * @param string $address
      *
      * @return string
      */
-    protected function _cellFormula($node): string
+    protected function _cellFormula($node, string $address): string
     {
-        $formula = parent::_cellFormula($node);
+        $formula = parent::_cellFormula($node, $address);
         $ref = (string)$node->getAttribute('ref');
-        if (preg_match_all('/[A-Z]+\d+/', $formula, $m)) {
-            $replacement = [];
-            foreach ($m[0] as $addr) {
-                $replacement[$addr] = Helper::A1toRC($addr, $ref);
-            }
-            $formula = str_replace(array_keys($replacement), array_values($replacement), $formula);
+        if (!$ref) {
+            $ref = $address;
         }
-        return $formula;
+        $tokens = token_get_all('<?' . $formula . '?>');
+        $tokens[0] = '=';
+        $max = count($tokens) - 1;
+        unset($tokens[$max]);
+        $max--;
+        $result = '';
+        foreach ($tokens as $n => $t) {
+            if (isset($t[0]) && $t[0] === T_STRING && ($n === $max || $tokens[$n + 1] !== '(') && preg_match('/^[A-Z]+[0-9]+$/', $t[1])) {
+                $result .= Helper::A1toRC($t[1], $ref);
+            }
+            else {
+                $result .= (is_string($t) ? $t : $t[1]);
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -134,7 +149,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      *
      * @return $this
      */
-    public function fillValues(array $params): Sheet
+    public function fill(array $params): Sheet
     {
         $this->sheetWriter->setFillValues($params);
 
@@ -148,7 +163,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      *
      * @return $this
      */
-    public function replaceValues(array $params): Sheet
+    public function replace(array $params): Sheet
     {
         $this->sheetWriter->setReplaceValues($params);
 
@@ -186,26 +201,60 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
     }
 
     /**
-     * @param int $rowNumber
-     * @param bool|int $skip
+     * @param int $rowNumberMin
+     * @param int $rowNumberMax
      *
-     * @return RowTemplate
+     * @return Reader
      */
-    public function getRowTemplate(int $rowNumber, ?bool $skip = false): RowTemplate
+    protected function getRowTemplateReader(int $rowNumberMin, int $rowNumberMax): Reader
     {
-        $rowTemplates = $this->getRowTemplates($rowNumber, $rowNumber, $skip);
+        if ($rowNumberMax < $rowNumberMin) {
+            throw new \RuntimeException('$rowNumberMax cannot be less then $rowNumberMin');
+        }
+        if ($rowNumberMin < $this->dimension['min_row_num']) {
+            throw new \RuntimeException('$rowNumberMin cannot be less then ' . $this->dimension['min_row_num']);
+        }
+        if ($rowNumberMin > $this->dimension['max_row_num']) {
+            throw new \RuntimeException('$rowNumberMin cannot be more then ' . $this->dimension['max_row_num']);
+        }
+        if ($rowNumberMax < $this->dimension['min_row_num']) {
+            throw new \RuntimeException('$rowNumberMax cannot be less then ' . $this->dimension['min_row_num']);
+        }
+        if ($rowNumberMax > $this->dimension['max_row_num']) {
+            throw new \RuntimeException('$rowNumberMax cannot be more then ' . $this->dimension['max_row_num']);
+        }
 
-        return $rowTemplates->current();
+        if (!empty($this->rowTemplateReader) && $this->rowTemplateNo > $rowNumberMin && !isset($this->rowTemplates[$rowNumberMin])) {
+            // Need to reset reader
+            $this->rowTemplateReader = null;
+        }
+        if (empty($this->rowTemplateReader)) {
+            $this->rowTemplateReader = Excel::createReader($this->zipFilename);
+            $this->rowTemplateReader->openZip($this->path);
+        }
+
+        return $this->rowTemplateReader;
+    }
+
+    /**
+     * @param int $rowNumber
+     * @param bool|null $savePointerPosition
+     *
+     * @return RowTemplateCollection
+     */
+    public function getRowTemplate(int $rowNumber, ?bool $savePointerPosition = false): RowTemplateCollection
+    {
+        return $this->getRowTemplates($rowNumber, $rowNumber, $savePointerPosition);
     }
 
     /**
      * @param int $rowNumberMin
      * @param int $rowNumberMax
-     * @param bool|int $skip
+     * @param bool|null $savePointerPosition
      *
      * @return RowTemplateCollection
      */
-    public function getRowTemplates(int $rowNumberMin, int $rowNumberMax, ?bool $skip = false): RowTemplateCollection
+    public function getRowTemplates(int $rowNumberMin, int $rowNumberMax, ?bool $savePointerPosition = false): RowTemplateCollection
     {
         $findNum = [];
         for ($rowNum = $rowNumberMin; $rowNum <= $rowNumberMax; $rowNum++) {
@@ -214,8 +263,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
             }
         }
         if ($findNum) {
-            $xmlReader = Excel::createReader($this->zipFilename);
-            $xmlReader->openZip($this->path);
+            $xmlReader = $this->getRowTemplateReader($rowNumberMin, $rowNumberMax);
 
             while ($xmlReader->read()) {
                 if ($xmlReader->nodeType === \XMLReader::ELEMENT && $xmlReader->name === 'row') {
@@ -228,7 +276,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                                 $addr = $xmlReader->getAttribute('r');
                                 if ($addr && preg_match('/^([A-Za-z]+)(\d+)$/', $addr, $m)) {
                                     $cell = $xmlReader->expand();
-                                    $value = $this->_cellValue($cell, $additionalData);
+                                    $this->_cellValue($cell, $additionalData);
                                     $cellData = $additionalData;
                                     $cellData['__address'] = $addr;
                                     $cellData['__merged'] = $this->mergedRange($addr);
@@ -238,6 +286,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                         }
                         unset($findNum[$r]);
                         $this->rowTemplates[$r] = $rowTemplate;
+                        $this->rowTemplateNo = $r;
                     }
                 }
                 if (!$findNum) {
@@ -252,18 +301,23 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         }
 
         $this->lastTouchRowNum = $rowNumberMax;
-        if ($skip) {
+        if (!$savePointerPosition) {
             $this->skipRowsUntil($rowNumberMax);
         }
 
-        return new RowTemplateCollection($rows);
+        $rowsCollection = new RowTemplateCollection($rows);
+        $rowsCollection->setSheet($this);
+
+        return $rowsCollection;
     }
 
     /**
      * @param array|RowTemplateCollection|RowTemplate $row
      * @param array|null $cellData
+     *
+     * @return Sheet
      */
-    public function insertRow($row, ?array $cellData = [])
+    public function insertRow($row, ?array $cellData = []): Sheet
     {
         if (is_array($row)) {
             $cellData = $row;
@@ -302,6 +356,8 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         $this->countInsertedRows++;
         $this->lastTouchRowNum = $rowNumber;
         $this->sheetWriter->nextRow();
+
+        return $this;
     }
 
     /**
@@ -336,15 +392,22 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
             $this->readGenerator = $this->nextRow([], \avadim\FastExcelReader\Excel::RESULT_MODE_ROW, true);
         }
         while ($rowNum = $this->readGenerator->key()) {
-            $cellData = $this->readGenerator->current();
-            foreach ($cellData['__cells'] as $col => $data) {
-                if (isset($this->sortedMergedCells[$rowNum]) && ($merged = $this->mergedRange($col . $rowNum))) {
-                    $cellData['__cells'][$col]['__merged'] = $merged;
+            $rowData = $this->readGenerator->current();
+            $rowTemplate = new RowTemplate();
+            if (isset($rowData['__row'])) {
+                $rowTemplate->setAttributes($rowData['__row']);
+            }
+            foreach ($rowData['__cells'] as $col => $cellData) {
+                $sourceAddress = $col . $rowNum;
+                $cellData['__sourceAddress'] = $sourceAddress;
+                if (isset($this->sortedMergedCells[$rowNum]) && ($merged = $this->mergedRange($sourceAddress))) {
+                    $cellData['__merged'] = $merged;
                 }
+                $rowTemplate->addCell($col, $cellData);
             }
             $this->readGenerator->next();
             $this->lastReadRowNum = $rowNum;
-            yield $rowNum => $cellData;
+            yield $rowNum => $rowTemplate;
         }
 
         return null;
@@ -355,9 +418,14 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      *
      * @return int
      */
-    public function latReadRowNum(): int
+    public function lastReadRowNum(): int
     {
         return $this->lastReadRowNum;
+    }
+
+    public function lastWrittenRowNum(): int
+    {
+        return $this->sheetWriter->currentRowNum() - 1;
     }
 
     /**
@@ -403,26 +471,36 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      * Transfers rows from template to output
      *
      * @param int|null $maxRowNum Max row of template
+     * @param $callback
      *
      * @return Sheet
      */
-    public function transferRowsUntil(?int $maxRowNum = null): Sheet
+    public function transferRowsUntil(?int $maxRowNum = null, $callback = null): Sheet
     {
         if ($maxRowNum === null || $maxRowNum > $this->lastReadRowNum) {
-            foreach ($this->readRow() as $rowNum => $rowData) {
-                if (!$maxRowNum || $rowNum <= $maxRowNum) {
-                    $rowNumOut = $this->sheetWriter->currentRowNum();
-                    if (isset($rowData['__row']['ht'])) {
-                        $this->sheetWriter->setRowHeight($rowNumOut, $rowData['__row']['ht']);
+            foreach ($this->readRow() as $sourceRowNum => $rowData) {
+                if (!$maxRowNum || $sourceRowNum <= $maxRowNum) {
+                    $targetRowNum = $this->sheetWriter->currentRowNum();
+                    if ($targetRowNum < $sourceRowNum) {
+                        $targetRowNum = $sourceRowNum;
                     }
-                    foreach ($rowData['__cells'] as $colLetter => $cellData) {
-                        $cellAddress = $colLetter . $rowNumOut;
-                        $cellAddressIdx = ['row_idx' => $rowNumOut - 1, 'col_idx' => Helper::colIndex($colLetter)];
+                    if ($callback) {
+                        $rowData = $callback($targetRowNum, $rowData);
+                    }
+                    if ($height = $rowData->rowHeight()) {
+                        $this->sheetWriter->setRowHeight($targetRowNum, $height);
+                    }
+                    foreach ($rowData->cells() as $colLetter => $cellData) {
+                        $cellAddress = $colLetter . $targetRowNum;
+                        $cellAddressIdx = ['row_idx' => $targetRowNum - 1, 'col_idx' => Helper::colIndex($colLetter)];
                         $this->_writeWithStyle($cellAddress, $cellAddressIdx, $cellData);
                     }
                     $this->sheetWriter->nextRow();
                 }
-                if ($maxRowNum !== null && !empty($rowNum) && ($rowNum >= $maxRowNum)) {
+                if ($maxRowNum !== null && !empty($sourceRowNum) && ($sourceRowNum >= $maxRowNum)) {
+                    while ($this->sheetWriter->currentRowNum() <= $maxRowNum) {
+                        $this->sheetWriter->nextRow();
+                    }
                     break;
                 }
             }
@@ -434,12 +512,13 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      * Transfers rows from template to output
      *
      * @param int|null $countRows Number of rows
+     * @param $callback
      *
      * @return Sheet
      */
-    public function transferRows(?int $countRows = null): Sheet
+    public function transferRows(?int $countRows = null, $callback = null): Sheet
     {
-        return $this->transferRowsUntil($countRows ? ($this->lastReadRowNum + $countRows) : null);
+        return $this->transferRowsUntil($countRows ? ($this->lastReadRowNum + $countRows) : null, $callback);
     }
 
     /**
@@ -458,6 +537,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                 }
             }
         }
+
         return $this;
     }
 
@@ -473,33 +553,8 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         return $this->skipRowsUntil($countRows ? ($this->lastReadRowNum + $countRows) : null);
     }
 
-    /**
-     * @param string $range
-     * @param string|null $header
-     * @param string|null $footer
-     *
-     * @return TableTemplate
-     */
-    public function table(string $range, ?string $header = null, ?string $footer = null): TableTemplate
-    {
-        $table = new TableTemplate($this, $range, $header, $footer);
-        $this->tables[$table->tplRange['min_row_num']] = $table;
-
-        return $table;
-    }
-
 
     public function saveSheet()
     {
-        if ($this->tables) {
-            ksort($this->tables);
-            /**
-             * @var int $tableRowBegin
-             * @var TableTemplate $table
-             */
-            foreach ($this->tables as $table) {
-                $table->transferRows();
-            }
-        }
     }
 }

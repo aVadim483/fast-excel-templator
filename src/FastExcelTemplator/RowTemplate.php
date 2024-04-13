@@ -6,7 +6,7 @@ use avadim\FastExcelHelper\Helper;
 
 class RowTemplate implements \Iterator
 {
-    protected array $domCells = [];
+    protected array $cells = [];
 
     protected array $attributes = [];
 
@@ -17,23 +17,62 @@ class RowTemplate implements \Iterator
         }
     }
 
-    public function addCell($colLetter, $cell)
+    #[\ReturnTypeWillChange]
+    public function current()
     {
-        $this->domCells[$colLetter] = $cell;
+        return current($this->cells);
+    }
+
+    #[\ReturnTypeWillChange]
+    public function key()
+    {
+        return key($this->cells);
+    }
+
+    #[\ReturnTypeWillChange]
+    public function next()
+    {
+        return next($this->cells);
+    }
+
+    #[\ReturnTypeWillChange]
+    public function rewind()
+    {
+        return reset($this->cells);
+    }
+
+    public function valid(): bool
+    {
+        return (bool)current($this->cells);
+    }
+
+    /**
+     * @param $colLetter
+     * @param $cell
+     *
+     * @return $this
+     */
+    public function addCell($colLetter, $cell): RowTemplate
+    {
+        $this->cells[$colLetter] = $cell;
+
+        return $this;
     }
 
     /**
      * @param string|null $colSource
      *
-     * @return void
+     * @return $this
      */
-    public function appendCell(?string $colSource = null)
+    public function appendCell(?string $colSource = null): RowTemplate
     {
         if (!$colSource) {
-            $colSource = array_key_last($this->domCells);
+            $colSource = array_key_last($this->cells);
         }
         $colTarget = Helper::colLetter(Helper::colNumber($colSource) + 1);
         $this->cloneCell($colSource, $colTarget);
+
+        return $this;
     }
 
     /**
@@ -41,22 +80,22 @@ class RowTemplate implements \Iterator
      * @param $colTarget
      * @param bool|null $checkMerge
      *
-     * @return void
+     * @return RowTemplate
      */
-    public function cloneCell(string $colSource, $colTarget, ?bool $checkMerge = false)
+    public function cloneCell(string $colSource, $colTarget, ?bool $checkMerge = false): RowTemplate
     {
         if (preg_match('/^([a-z]+)(\d+)/i', $colSource, $m)) {
             $colSource = $m[1];
         }
         $colSource = strtoupper($colSource);
-        if (isset($this->domCells[$colSource])) {
+        if (isset($this->cells[$colSource])) {
             $colTarget = Helper::colLetterRange($colTarget);
             foreach ($colTarget as $col) {
-                if (is_object($this->domCells[$colSource])) {
-                    $cell = clone $this->domCells[$colSource];
+                if (is_object($this->cells[$colSource])) {
+                    $cell = clone $this->cells[$colSource];
                 }
                 else {
-                    $cell = $this->domCells[$colSource];
+                    $cell = $this->cells[$colSource];
                     if (!$checkMerge && !empty($cell['__merged'])) {
                         unset($cell['__merged']);
                     }
@@ -64,19 +103,43 @@ class RowTemplate implements \Iterator
                 $this->addCell($col, $cell);
             }
         }
+
+        return $this;
+    }
+
+    /**
+     * @return array
+     */
+    public function cells(): array
+    {
+        return $this->cells;
     }
 
     /**
      * @param array $attributes
      *
-     * @return void
+     * @return RowTemplate
      */
-    public function setAttributes(array $attributes)
+    public function setAttributes(array $attributes): RowTemplate
     {
         $this->attributes = $attributes;
+
+        return $this;
     }
 
     /**
+     * All source row attributes
+     *
+     * @return array
+     */
+    public function getAttributes(): array
+    {
+        return $this->attributes;
+    }
+
+    /**
+     * Source row attribute
+     *
      * @param $name
      *
      * @return string|null
@@ -86,43 +149,39 @@ class RowTemplate implements \Iterator
         return $this->attributes[$name] ?? null;
     }
 
-    #[\ReturnTypeWillChange]
-    public function current()
+    /**
+     * Source row number
+     *
+     * @return int|null
+     */
+    public function rowNumber(): ?int
     {
-        return current($this->domCells);
+        $rowNum = $this->attribute('r');
+
+        return $rowNum ? (int)$rowNum : null;
     }
 
-    #[\ReturnTypeWillChange]
-    public function key()
+    /**
+     * Source row height
+     *
+     * @return string|null
+     */
+    public function rowHeight(): ?string
     {
-        return key($this->domCells);
-    }
-
-    #[\ReturnTypeWillChange]
-    public function next()
-    {
-        return next($this->domCells);
-    }
-
-    #[\ReturnTypeWillChange]
-    public function rewind()
-    {
-        return reset($this->domCells);
-    }
-
-    public function valid(): bool
-    {
-        return (bool)current($this->domCells);
+        return $this->attribute('ht');
     }
 
     public function setValue($colLetter, $value): RowTemplate
     {
         if ($value && is_string($value) && $value[0] === '=') {
-            $this->domCells[$colLetter]['f'] = $value;
-            $this->domCells[$colLetter]['v'] = '';
+            $this->cells[$colLetter]['f'] = $value;
+            $this->cells[$colLetter]['v'] = '';
         }
         else {
-            $this->domCells[$colLetter]['v'] = $value;
+            $this->cells[$colLetter]['v'] = $value;
+        }
+        if (!isset($this->cells[$colLetter]['t'])) {
+            $this->cells[$colLetter]['t'] = '';
         }
 
         return $this;

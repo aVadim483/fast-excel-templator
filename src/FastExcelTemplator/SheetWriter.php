@@ -12,6 +12,11 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
     protected array $replace = [];
 
 
+    public function _setSheetViewsAttributes(array $attributes)
+    {
+        $this->sheetViews = [$attributes];
+    }
+
     /**
      * @param $rowIdx
      * @param $colIdx
@@ -103,7 +108,7 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
      */
     public function _writeToCellByIdx($cellAddress, $value, $styles = null)
     {
-        $this->_setCellData($cellAddress, $value, $styles);
+        $this->_setCellData($cellAddress, $value, $styles, false, true);
     }
 
     public function updateMergedCells($oldRange, $newRange)

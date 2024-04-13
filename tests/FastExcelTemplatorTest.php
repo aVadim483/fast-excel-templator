@@ -48,11 +48,11 @@ final class FastExcelTemplatorTest extends TestCase
         ];
 
         $sheet
-            ->fillValues($fillData)
-            ->replaceValues($replaceData)
+            ->fill($fillData)
+            ->replace($replaceData)
         ;
-        $rowTemplate = $sheet->getRowTemplate(6);
-        $count = 0;
+        $sheet->transferRowsUntil(6);
+        $rowTemplate = $sheet->getRowTemplate(7);
         foreach ($list as $record) {
             $rowData = [
                 // In the column A wil be written value from field 'number'
@@ -63,14 +63,7 @@ final class FastExcelTemplatorTest extends TestCase
                 'C' => $record['price1'],
                 'D' => $record['price2'],
             ];
-            if ($count++ === 0) {
-                // First we replace the row 6 (this is template row)
-                $sheet->replaceRow(6, $rowTemplate, $rowData);
-            }
-            else {
-                // Then we add new rows after last touched
-                $sheet->insertRowAfterLast($rowTemplate, $rowData);
-            }
+            $sheet->insertRow($rowTemplate, $rowData);
         }
         $excel->save();
         $this->assertTrue(is_file($out));
@@ -78,9 +71,9 @@ final class FastExcelTemplatorTest extends TestCase
         $excelReader = \avadim\FastExcelReader\Excel::open($out);
         $cells = $excelReader->readCells();
 
-        $this->assertEquals($fillData['{{COMPANY}}'], $cells['A1']);
-        $this->assertEquals('*Bulk pricing applies to quantities of 12 or more', $cells['D3']);
-        $this->assertEquals(249, $cells['C8']);
+        $this->assertEquals($fillData['{{COMPANY}}'], $cells['A2']);
+        $this->assertEquals('*Bulk pricing applies to quantities of 12 or more', $cells['D4']);
+        $this->assertEquals(249, $cells['C9']);
 
         unlink($out);
     }

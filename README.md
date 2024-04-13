@@ -32,12 +32,13 @@ composer require avadim/fast-excel-templator
 
 Example of template
 
-![demo1-tpl.png](demo1-tpl.png)
+![demo1-tpl.png](demo2-tpl.jpg)
 
 From this template you can get a file like this
 
-![demo1-out.png](demo1-out.png)
+![demo1-out.png](demo2-out.jpg)
 
+**Step 1** - open template and set replacements
 ```php
 // Open template and set output file
 $excel = Excel::template($tpl, $out);
@@ -50,67 +51,90 @@ $fillData = [
     '{{CITY}}' => 'Peace City, TN',
 ];
 
-// Replaces entire cell values for the sheet
+// Set replacements of entire cell values for the sheet
 // If the value is '{{COMPANY}}', then this value will be replaced,
 // but if the value 'Company Name {{COMPANY}}', then this value will not be replaced 
 $sheet->fill($fillData);
 
-// Replaces any occurring substrings
+// Set replacements of any occurring substrings
 // If the value is '{{DATE}}' or 'Date: {{DATE}}', then substring '{{DATE}}' will be replaced,
 $replaceData = ['{{BULK_QTY}}' => 12, '{{DATE}}' => date('m/d/Y')];
 $sheet->replace($fillData);
 ```
+**Step 2** - transfer the top of the sheet and the table headers from the template to the output file
+```php
+// Transfer rows 1-6 from templates to output file
+$sheet->transferRowsUntil(6);
+```
+There are 6 rows read from template, the output file also contains 6 lines
 
-Also, you can use any row as a template
+![demo1-out.png](demo2-1.jpg)
+
+**Step 3** - insert inner table rows
+```php
+// Get the row number 7 as a template and go to the next row in the template
+$rowTemplate = $sheet->getRowTemplate(7);
+
+// Fill row template and insert it into the output
+foreach ($allData as $record) {
+    $rowData = [
+        // In the column A wil be written value from field 'number'
+        'A' => $record['number'],
+        // In the column B wil be written value from field 'description'
+        'B' => $record['description'],
+        // And so on...
+        'C' => $record['price1'],
+        'D' => $record['price2'],
+    ];
+    $sheet->insertRow($rowTemplate, $rowData);
+}
+```
+We filled in and inserted rows 7, 8 and 9
+
+![demo1-out.png](demo2-2.jpg)
+
+**Step 4** - Now transfer the remaining rows and save file
 
 ```php
-// Get the specified row (number 6) as a template
-$rowTemplate = $sheet->getRowTemplate(6);
-// You can insert template row many times with new data
-$rowData = [
-    // Value for the column A
-    'A' => 'AA-8465-947563',
-    // Value for the column B
-    'B' => 'NEC Mate Type ML PC-MK29MLZD1FWG',
-    // And so on...
-    'C' => 816,
-    'D' => 683,
-];
-// Replace row 6 instead of a template row
-$sheet->replaceRow(6, $rowTemplate, $rowData);
-
-// New data for the new row
-$rowData = [
-    // ...
-];
-// Add new row from the same template after the last insertion
-$sheet->insertRowAfterLast($rowTemplate, $rowData);
+// Method transferRows() without arguments transfers remaining rows from the template to the output file 
+$sheet->transferRows();
 
 // ...
 // Save new file
 $excel->save();
-
 ```
+
+
+![demo1-out.png](demo2-3.jpg)
 
 You can find code examples in */demo* folder
 
 ## List of functions
 ### Class Excel
 
-Excel::template($template, $output);
+Excel::template($template, $output): Excel -- Open template file
 
-* fill(array $replacement) - Replaces the entire cell value for all sheets
-* replace(array $replacement) - Replaces a substring in a cell for all sheets
-* save()
+* sheet(?string $name = null): ?Sheet -- Select the specified sheet
+* fill(array $replacement) -- Set replacements of the entire cell value for all sheets
+* replace(array $replacement) -- Set replacements of substrings in a cells for all sheets
+* save(?string $fileName = null, ?bool $overWrite = true): bool -- Save generated XLSX-file
+* download(string $name = null): void -- Download generated file to client (send to browser)
 
 ### Class Sheet
 
-* fill(array $replacement) - Replaces the entire cell value for the sheet
-* replace(array $replacement) - Replaces a substring in a cell for the sheet
-* getRowTemplate($rowNumber) - Gets template from the row
-* insertRow($rowNumber, $rowTemplate, ?array $cellData = [])
-* replaceRow($rowNumber, $rowTemplate, ?array $cellData = [])
-* insertRowAfterLast($rowTemplate, ?array $cellData = [])
+* fill(array $replacement) -- Set replacements of the entire cell value for the sheet
+* replace(array $replacement) -- Set replacements of substrings in a cell for the sheet
+* getRowTemplate(int $rowNumber, ?bool $savePointerPosition = false) -- Gets template from the row
+* getRowTemplates(int $rowNumberMin, int $rowNumberMax, ?bool $savePointerPosition = false) -- Gets row template
+* transferRows(?int $countRows = null, $callback = null) -- Transfers rows from template to output
+* transferRowsUntil(?int $maxRowNum = null, $callback = null) -- Transfers rows from template to output
+* insertRow($rowTemplates, ?array $cellData = [])
+* skipRows(?int $countRows = null)
+* skipRowsUntil(?int $maxRowNum = null)
+
+### Class RowTemplateCollection
+
+* cloneCell(string $colSource, $colTarget, ?bool $checkMerge = false): RowTemplateCollection
 
 ## Do you like FastExcelTemplator?
 

@@ -41,9 +41,12 @@ $data = [
     ],
 ];
 
+// Transfer rows 1-3 from templates to output file
+$sheet->transferRowsUntil(3);
+
 $head = $sheet->getRowTemplate(4);
 $head->cloneCell('D', 'E-I');
-$sheet->replaceRow(4, $head, ['D' => 'January', 'E' => 'February', 'F' => 'March', 'G' => 'April', 'H' => 'May', 'I' => 'June']);
+$sheet->insertRow($head, ['D' => 'January', 'E' => 'February', 'F' => 'March', 'G' => 'April', 'H' => 'May', 'I' => 'June']);
 
 $rowTemplate = $sheet->getRowTemplate(5);
 $rowTemplate->cloneCell('D', ['E', 'F', 'G-I']);
@@ -59,12 +62,7 @@ foreach ($data as $locName => $locData) {
         'H' => $locData['May'],
         'I' => $locData['June'],
     ];
-    if ($cnt === 1) {
-        $sheet->replaceRow(5, $rowTemplate, $rowData);
-    }
-    else {
-        $sheet->insertRowAfterLast($rowTemplate, $rowData);
-    }
+    $sheet->insertRow($rowTemplate, $rowData);
 }
 
 $excel->save($out);

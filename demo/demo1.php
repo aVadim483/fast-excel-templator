@@ -4,7 +4,6 @@ use avadim\FastExcelTemplator\Excel;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/autoload.php';
-
 $tpl = __DIR__ . '/files/demo1-tpl.xlsx';
 $out = __DIR__ . '/files/demo1-out.xlsx';
 
@@ -41,14 +40,17 @@ $list = [
     ],
 ];
 
-// Replace strings and substrings on the sheet
+// Replacement strings and substrings on the sheet
 $sheet
-    ->fillValues($fillData)
-    ->replaceValues($replaceData)
+    ->fill($fillData)
+    ->replace($replaceData)
 ;
 
-// Get the specified row (number 6) as a template
-$rowTemplate = $sheet->getRowTemplate(6);
+// Transfer rows 1-6 from templates to output file
+$sheet->transferRowsUntil(6);
+
+// Get the specified row (number 7) as a template and go to the next row in the template
+$rowTemplate = $sheet->getRowTemplate(7);
 $count = 0;
 foreach ($list as $record) {
     $rowData = [
@@ -60,15 +62,10 @@ foreach ($list as $record) {
         'C' => $record['price1'],
         'D' => $record['price2'],
     ];
-    if ($count++ === 0) {
-        // First we replace the row 6 (this is template row)
-        $sheet->replaceRow(6, $rowTemplate, $rowData);
-    }
-    else {
-        // Then we add new rows after last touched
-        $sheet->insertRowAfterLast($rowTemplate, $rowData);
-    }
+    $sheet->insertRow($rowTemplate, $rowData);
 }
+
+$sheet->transferRows();
 
 $excel->save();
 

@@ -13,7 +13,7 @@ class Excel extends ExcelReader
 {
     public static Excel $instance;
 
-    public $excelWriter;
+    public ExcelWriter $excelWriter;
 
     protected string $templateFile;
 
@@ -50,7 +50,12 @@ class Excel extends ExcelReader
             $sheet->sheetWriter = $this->excelWriter->makeSheet($sheet->name());
             $this->xmlReader->openZip($sheet->path());
             while ($this->xmlReader->read()) {
-                if ($this->xmlReader->nodeType === \XMLReader::ELEMENT && $this->xmlReader->name === 'col') {
+                if ($this->xmlReader->nodeType === \XMLReader::ELEMENT && $this->xmlReader->name === 'sheetView') {
+                    // <sheetView tabSelected="1" view="pageBreakPreview" zoomScaleNormal="100" zoomScaleSheetLayoutView="100" workbookViewId="0">
+                    $attributes = $this->xmlReader->getAllAttributes();
+                    $sheet->sheetWriter->_setSheetViewsAttributes($attributes);
+                }
+                elseif ($this->xmlReader->nodeType === \XMLReader::ELEMENT && $this->xmlReader->name === 'col') {
                     // <col min="1" max="1" width="20.83203125" customWidth="1"/>
                     $attributes = $this->xmlReader->getAllAttributes();
                     if (isset($attributes['min'])) {
@@ -136,10 +141,10 @@ class Excel extends ExcelReader
      *
      * @return $this
      */
-    public function fillValues(array $params): Excel
+    public function fill(array $params): Excel
     {
         foreach ($this->sheets as $sheet) {
-            $sheet->fillValues($params);
+            $sheet->fill($params);
         }
 
         return $this;
@@ -150,10 +155,10 @@ class Excel extends ExcelReader
      *
      * @return $this
      */
-    public function replaceValues(array $params): Excel
+    public function replace(array $params): Excel
     {
         foreach ($this->sheets as $sheet) {
-            $sheet->replaceValues($params);
+            $sheet->replace($params);
         }
         return $this;
     }
