@@ -6,6 +6,9 @@ use avadim\FastExcelHelper\Helper;
 use avadim\FastExcelReader\Interfaces\InterfaceSheetReader;
 use avadim\FastExcelWriter\Interfaces\InterfaceSheetWriter;
 
+/**
+ *
+ */
 class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReader
 {
     public SheetWriter $sheetWriter;
@@ -30,6 +33,13 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
     protected int $rowTemplateNo = 0;
 
 
+    /**
+     * @param $sheetName
+     * @param $sheetId
+     * @param $file
+     * @param $path
+     * @param $excel
+     */
     public function __construct($sheetName, $sheetId, $file, $path, $excel)
     {
         parent::__construct($sheetName, $sheetId, $file, $path, $excel);
@@ -78,13 +88,23 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
 
     public function postRead($xmlReader)
     {
-        $tags = ['pageSetup', 'drawing', 'legacyDrawing'];
+        $tags = ['autoFilter', 'pageMargins', 'pageSetup', 'drawing', 'legacyDrawing'];
+        //$tags = ['pageMargins', 'pageSetup', 'drawing', 'legacyDrawing'];
         while ($xmlReader->read()) {
             if ($xmlReader->nodeType === \XMLReader::ELEMENT) {
                 if (in_array($xmlReader->name, $tags)) {
-                    $options = $xmlReader->getAllAttributes();
-                    if ($options) {
-                        $this->sheetWriter->setBottomNodesOptions($xmlReader->name, $options);
+                    if ($xmlReader->name === 'autoFilter') {
+                        $ref = $xmlReader->getAttribute('ref');
+                        if ($ref) {
+                            //$range = Helper::rangeArray($ref);
+                            $this->sheetWriter->setAutofilter(1, 1);
+                        }
+                    }
+                    else {
+                        $options = $xmlReader->getAllAttributes();
+                        if ($options) {
+                            $this->sheetWriter->setBottomNodesOptions($xmlReader->name, $options);
+                        }
                     }
                 }
             }
@@ -411,6 +431,23 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         }
 
         return null;
+    }
+
+
+    /**
+     * Write values to the current row
+     *
+     * @param array $rowValues Values of cells
+     * @param array|null $rowStyle Style applied to the entire row
+     * @param array|null $cellStyles Styles of specified cells in the row
+     *
+     * @return $this
+     */
+    public function writeRow(array $rowValues = [], array $rowStyle = null, array $cellStyles = null): Sheet
+    {
+        $this->sheetWriter->writeRow($rowValues, $rowStyle, $cellStyles);
+
+        return $this;
     }
 
     /**

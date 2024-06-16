@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace avadim\FastExcelTemplator;
 
-use PHPUnit\Framework\TestCase;
 use avadim\FastExcelTemplator\Excel;
+use PHPUnit\Framework\TestCase;
 
 final class FastExcelTemplatorTest extends TestCase
 {
@@ -78,5 +78,25 @@ final class FastExcelTemplatorTest extends TestCase
         unlink($out);
     }
 
+    public function test02()
+    {
+        $tpl = self::DEMO_DIR . 'demo1-tpl.xlsx';
+        $out = __DIR__ . '/demo1-out.xlsx';
+
+        $excel = Excel::template($tpl, $out);
+        $sheet = $excel->sheet();
+
+        $sheet->sheetWriter
+            ->setColWidth(['C', 'D'], 250);
+        $sheet->transferRows();
+        $excel->save();
+        $this->assertTrue(is_file($out));
+
+        $excelReader = \avadim\FastExcelReader\Excel::open($out);
+        $sheet = $excelReader->sheet();
+        $colAttributes = $sheet->getColAttributes();
+        $this->assertEquals(250, (int)$colAttributes['C']['width']);
+        $this->assertEquals(250, (int)$colAttributes['D']['width']);
+    }
 }
 

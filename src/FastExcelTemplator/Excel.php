@@ -2,6 +2,7 @@
 
 namespace avadim\FastExcelTemplator;
 
+use avadim\FastExcelHelper\Helper;
 use \avadim\FastExcelReader\Excel as ExcelReader;
 
 /**
@@ -55,6 +56,20 @@ class Excel extends ExcelReader
                     $attributes = $this->xmlReader->getAllAttributes();
                     $sheet->sheetWriter->_setSheetViewsAttributes($attributes);
                 }
+                if ($this->xmlReader->nodeType === \XMLReader::ELEMENT && $this->xmlReader->name === 'pane') {
+                    // <pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>
+                    $attributes = $this->xmlReader->getAllAttributes();
+                    if (isset($attributes['ySplit'], $attributes['xSplit'])) {
+                        $sheet->sheetWriter->setFreezeRows((int)$attributes['ySplit']);
+                        $sheet->sheetWriter->setFreezeColumns((int)$attributes['xSplit']);
+                    }
+                    elseif (isset($attributes['ySplit'])) {
+                        $sheet->sheetWriter->setFreezeRows((int)$attributes['ySplit']);
+                    }
+                    elseif (isset($attributes['xSplit'])) {
+                        $sheet->sheetWriter->setFreezeColumns((int)$attributes['xSplit']);
+                    }
+                }
                 elseif ($this->xmlReader->nodeType === \XMLReader::ELEMENT && $this->xmlReader->name === 'col') {
                     // <col min="1" max="1" width="20.83203125" customWidth="1"/>
                     $attributes = $this->xmlReader->getAllAttributes();
@@ -68,6 +83,17 @@ class Excel extends ExcelReader
                 }
             }
             $this->xmlReader->close();
+        }
+
+        foreach ($this->sheets as $sheetId => $sheet) {
+            foreach ($sheet->sheetWriter->getColAttributes() as $colIdx => $attributes) {
+                if (!empty($attributes['style'])) {
+                    $style = $this->getCompleteStyleByIdx($attributes['style'], true);
+                    if ($style) {
+                        $sheet->sheetWriter->setColStyles(Helper::colLetter($colIdx + 1), $style);
+                    }
+                }
+            }
         }
     }
 
