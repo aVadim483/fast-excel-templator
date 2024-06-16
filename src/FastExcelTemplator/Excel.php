@@ -230,8 +230,24 @@ class Excel extends ExcelReader
      */
     public function download(string $name = null)
     {
+        $tmpFile = $this->excelWriter->writer->makeTempFileName(uniqid('xlsx_writer_'));
+        $this->save($tmpFile);
+        if (!$name) {
+            $name = basename($tmpFile) . '.xlsx';
+        }
+        else {
+            $name = basename($name);
+            if (strtolower(pathinfo($name, PATHINFO_EXTENSION)) !== 'xlsx') {
+                $name .= '.xlsx';
+            }
+        }
 
-        $this->excelWriter->download($name);
+        header('Cache-Control: max-age=0');
+        header('Content-Type: application/vnd.ms-excel');
+        header('Content-Disposition: attachment; filename="' . $name . '"');
+
+        readfile($tmpFile);
+        unlink($tmpFile);
     }
 
     /**
