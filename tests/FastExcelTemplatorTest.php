@@ -97,6 +97,53 @@ final class FastExcelTemplatorTest extends TestCase
         $colAttributes = $sheet->getColAttributes();
         $this->assertEquals(250, (int)$colAttributes['C']['width']);
         $this->assertEquals(250, (int)$colAttributes['D']['width']);
+
+        unlink($out);
+    }
+
+    public function test03()
+    {
+        $tpl = __DIR__ . '/files/test-formulas.xlsx';
+        $out = __DIR__ . '/files/test-formulas-out.xlsx';
+
+        $excel = Excel::template($tpl, $out);
+
+        foreach ($excel->sheets() as $sheet) {
+            $sheet->transferRows();
+        }
+
+        $excel->save();
+        $this->assertTrue(is_file($out));
+
+        $excelReader = \avadim\FastExcelReader\Excel::open($out);
+        $excelReader->dateFormatter(true);
+        $cells = $excelReader->readCellsWithStyles();
+
+        $c1 = $cells['B2'];unset($c1['s']);
+        $c0 = ['v' => '23.01.1985', 'f' => null, 'o' => '31070', 't' => 'date'];
+        $this->assertEquals($c0, $c1);
+
+        $c1 = $cells['C2'];unset($c1['s']);
+        $c0 = ['v' => '=B2+1', 'f' => '=B2+1', 'o' => '=B2+1', 't' => 'date'];
+        $this->assertEquals($c0, $c1);
+
+        $c1 = $cells['C3'];unset($c1['s']);
+        $c0 = ['v' => '=Sheet2!B2', 'f' => '=Sheet2!B2', 'o' => '=Sheet2!B2', 't' => 'date'];
+        $this->assertEquals($c0, $c1);
+
+        $c1 = $cells['C6'];unset($c1['s']);
+        $c0 = ['v' => '=TestDate1+1', 'f' => '=TestDate1+1', 'o' => '=TestDate1+1', 't' => 'date'];
+        $this->assertEquals($c0, $c1);
+
+        $c1 = $cells['C9'];unset($c1['s']);
+        $c0 = ['v' => '="qwe" & TestDate1', 'f' => '="qwe" & TestDate1', 'o' => '="qwe" & TestDate1', 't' => ''];
+        $this->assertEquals($c0, $c1);
+
+        $c1 = $cells['C10'];unset($c1['s']);
+        $c0 = ['v' => '=SUM(C2:C9)', 'f' => '=SUM(C2:C9)', 'o' => '=SUM(C2:C9)', 't' => ''];
+        $this->assertEquals($c0, $c1);
+
+        unlink($out);
     }
 }
 

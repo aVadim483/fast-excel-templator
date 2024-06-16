@@ -477,13 +477,12 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
     private function _writeWithStyle($cellAddress, $cellAddressIdx, $cellData)
     {
         $numberFormatType = null;
-        if ($cellData['t'] === 'date' && is_numeric($cellData['o'])) {
+        if (!empty($cellData['f'])) {
+            $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellData['f']);
+        }
+        elseif ($cellData['t'] === 'date' && is_numeric($cellData['o'])) {
             $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellData['o']);
             $numberFormatType = 'n_auto';
-        }
-        elseif (!empty($cellData['f'])) {
-            ///$this->sheetWriter->writeTo($cellAddress, $cellData['f']);
-            $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellData['f']);
         }
         else {
             if ($cellData['t'] === 'date') {

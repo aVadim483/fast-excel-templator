@@ -163,6 +163,16 @@ class Excel extends ExcelReader
     }
 
     /**
+     * Array of all sheets
+     *
+     * @return Sheet[]
+     */
+    public function sheets(): array
+    {
+        return $this->sheets;
+    }
+
+    /**
      * @param array $params
      *
      * @return $this
