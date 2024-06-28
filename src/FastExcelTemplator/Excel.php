@@ -50,15 +50,22 @@ class Excel extends ExcelReader
         foreach ($this->sheets as $sheetId => $sheet) {
             $sheet->sheetWriter = $this->excelWriter->makeSheet($sheet->name());
             $this->xmlReader->openZip($sheet->path());
+            $sheetViewsAttributes = [];
             while ($this->xmlReader->read()) {
                 if ($this->xmlReader->nodeType === \XMLReader::ELEMENT && $this->xmlReader->name === 'sheetView') {
                     // <sheetView tabSelected="1" view="pageBreakPreview" zoomScaleNormal="100" zoomScaleSheetLayoutView="100" workbookViewId="0">
                     $attributes = $this->xmlReader->getAllAttributes();
-                    $sheet->sheetWriter->_setSheetViewsAttributes($attributes);
+                    if ($attributes) {
+                        $sheetViewsAttributes['_attr'] = $attributes;
+                    }
                 }
-                if ($this->xmlReader->nodeType === \XMLReader::ELEMENT && $this->xmlReader->name === 'pane') {
+                if ($this->xmlReader->nodeType === \XMLReader::ELEMENT && $this->xmlReader->name === 'pane' && $sheetViewsAttributes) {
                     // <pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>
                     $attributes = $this->xmlReader->getAllAttributes();
+                    $sheetViewsAttributes['_items'][] = [
+                        '_tag' => 'pane',
+                        '_attr' => $attributes ?: [],
+                    ];
                     if (isset($attributes['ySplit'], $attributes['xSplit'])) {
                         $sheet->sheetWriter->setFreezeRows((int)$attributes['ySplit']);
                         $sheet->sheetWriter->setFreezeColumns((int)$attributes['xSplit']);
@@ -68,6 +75,24 @@ class Excel extends ExcelReader
                     }
                     elseif (isset($attributes['xSplit'])) {
                         $sheet->sheetWriter->setFreezeColumns((int)$attributes['xSplit']);
+                    }
+                }
+                if ($this->xmlReader->nodeType === \XMLReader::ELEMENT && $this->xmlReader->name === 'selection' && $sheetViewsAttributes) {
+                    // <selection pane="bottomLeft" activeCell="D1048557" sqref="D1048557"/>
+                    $attributes = $this->xmlReader->getAllAttributes();
+                    $sheetViewsAttributes['_items'][] = [
+                        '_tag' => 'selection',
+                        '_attr' => $attributes ?: [],
+                    ];
+                }
+                elseif ($this->xmlReader->nodeType === \XMLReader::END_ELEMENT && $this->xmlReader->name === 'sheetViews') {
+                    $sheet->sheetWriter->_setSheetViewsAttributes($sheetViewsAttributes);
+                }
+                if ($this->xmlReader->nodeType === \XMLReader::ELEMENT && $this->xmlReader->name === 'sheetFormatPr') {
+                    // <sheetFormatPr defaultColWidth="9.1015625" defaultRowHeight="12.9" x14ac:dyDescent="0.5"/>
+                    $attributes = $this->xmlReader->getAllAttributes();
+                    if ($attributes) {
+                        $sheet->sheetWriter->_setSheetFormatPrAttributes($attributes);
                     }
                 }
                 elseif ($this->xmlReader->nodeType === \XMLReader::ELEMENT && $this->xmlReader->name === 'col') {
@@ -82,6 +107,7 @@ class Excel extends ExcelReader
                     break;
                 }
             }
+
             $this->xmlReader->close();
         }
 

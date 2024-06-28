@@ -17,6 +17,20 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
         $this->sheetViews = [$attributes];
     }
 
+    public function _setSheetFormatPrAttributes(array $attributes)
+    {
+        foreach ($attributes as $key => $val) {
+            if (strpos($key, ':') === false) {
+                $this->sheetFormatPr[$key] = $val;
+            }
+        }
+    }
+
+    public function getSheetViews(): array
+    {
+        return $this->sheetViews;
+    }
+
     /**
      * @param $rowIdx
      * @param $colIdx

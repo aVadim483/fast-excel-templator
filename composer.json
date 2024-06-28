@@ -29,7 +29,7 @@
         "ext-xmlreader": "*",
         "ext-dom": "*",
         "avadim/fast-excel-helper": "^1.2",
-        "avadim/fast-excel-writer": "^5.3",
+        "avadim/fast-excel-writer": "^5.5.1",
         "avadim/fast-excel-reader": "^2.16"
     },
     "require-dev": {
