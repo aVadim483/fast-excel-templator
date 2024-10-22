@@ -140,7 +140,7 @@ final class FastExcelTemplatorTest extends TestCase
         $this->assertEquals($c0, $c1);
 
         $c1 = $cells['C10'];unset($c1['s']);
-        $c0 = ['v' => '=SUM(C2:C9)', 'f' => '=SUM(C2:C9)', 'o' => '=SUM(C2:C9)', 't' => ''];
+        $c0 = ['v' => '=SUM(C2:C9)', 'f' => '=SUM(C2:C9)', 'o' => '=SUM(C2:C9)', 't' => 'number'];
         $this->assertEquals($c0, $c1);
 
         unlink($out);

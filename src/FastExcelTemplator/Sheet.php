@@ -62,7 +62,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      */
     public function path(): string
     {
-        return $this->path;
+        return $this->pathInZip;
     }
 
     /**
@@ -250,7 +250,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         }
         if (empty($this->rowTemplateReader)) {
             $this->rowTemplateReader = Excel::createReader($this->zipFilename);
-            $this->rowTemplateReader->openZip($this->path);
+            $this->rowTemplateReader->openZip($this->path());
         }
 
         return $this->rowTemplateReader;
@@ -479,10 +479,6 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         $numberFormatType = null;
         if (!empty($cellData['f'])) {
             $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellData['f']);
-        }
-        elseif ($cellData['t'] === 'date' && is_numeric($cellData['o'])) {
-            $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellData['o']);
-            $numberFormatType = 'n_auto';
         }
         else {
             if ($cellData['t'] === 'date') {
