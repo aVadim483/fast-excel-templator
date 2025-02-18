@@ -16,7 +16,7 @@ class ExcelWriter extends \avadim\FastExcelWriter\Excel
      *
      * @return \avadim\FastExcelWriter\Sheet|SheetWriter
      */
-    public function makeSheet(string $sheetName = null): SheetWriter
+    public function makeSheet(?string $sheetName = null): SheetWriter
     {
         return parent::makeSheet($sheetName);
     }

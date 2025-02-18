@@ -254,7 +254,7 @@ class Excel extends ExcelReader
      *
      * @param string|null $name
      */
-    public function download(string $name = null)
+    public function download(?string $name = null)
     {
         $tmpFile = $this->excelWriter->writer->makeTempFileName(uniqid('xlsx_writer_'));
         $this->save($tmpFile);
@@ -283,7 +283,7 @@ class Excel extends ExcelReader
      *
      * @return void
      */
-    public function output(string $name = null)
+    public function output(?string $name = null)
     {
         $this->download($name);
     }

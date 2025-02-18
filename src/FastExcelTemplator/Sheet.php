@@ -70,7 +70,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      *
      * @return Reader
      */
-    protected function getReader(string $file = null): Reader
+    protected function getReader(?string $file = null): Reader
     {
         if (empty($this->xmlReader)) {
             if (!$file) {
@@ -118,7 +118,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      *
      * @return mixed
      */
-    protected function _cellValue($cell, &$additionalData = [])
+    protected function _cellValue($cell, ?array &$additionalData = [])
     {
         $result = parent::_cellValue($cell, $additionalData);
         $address = $cell->attributes['r']->value;
@@ -443,7 +443,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      *
      * @return $this
      */
-    public function writeRow(array $rowValues = [], array $rowStyle = null, array $cellStyles = null): Sheet
+    public function writeRow(array $rowValues = [], ?array $rowStyle = null, ?array $cellStyles = null): Sheet
     {
         $this->sheetWriter->writeRow($rowValues, $rowStyle, $cellStyles);
 
