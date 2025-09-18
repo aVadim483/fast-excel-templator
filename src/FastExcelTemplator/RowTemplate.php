@@ -10,6 +10,9 @@ class RowTemplate implements \Iterator
 
     protected array $attributes = [];
 
+    protected array $lastAddedCells = [];
+
+
     public function __construct(?array $cellData = [])
     {
         if ($cellData) {
@@ -47,29 +50,38 @@ class RowTemplate implements \Iterator
     }
 
     /**
-     * @param $colLetter
+     * @param string $colLetter
      * @param $cell
      *
      * @return $this
      */
-    public function addCell($colLetter, $cell): RowTemplate
+    public function addCell(string $colLetter, $cell): RowTemplate
     {
-        $this->cells[$colLetter] = $cell;
+        $this->cells[strtoupper($colLetter)] = $cell;
 
         return $this;
     }
 
     /**
      * @param string|null $colSource
+     * @param int|null $number
      *
      * @return $this
      */
-    public function appendCell(?string $colSource = null): RowTemplate
+    public function appendCell(?string $colSource = null, ?int $number = null): RowTemplate
     {
         if (!$colSource) {
             $colSource = array_key_last($this->cells);
         }
-        $colTarget = Helper::colLetter(Helper::colNumber($colSource) + 1);
+        if (!$number) {
+            $colTarget = Helper::colLetter(Helper::colNumber($colSource) + 1);
+        }
+        else {
+            $colTarget = [];
+            for ($i = 0; $i < $number; $i++) {
+                $colTarget[] = Helper::colLetter(Helper::colNumber($colSource) + 1 + $i);
+            }
+        }
         $this->cloneCell($colSource, $colTarget);
 
         return $this;
@@ -77,7 +89,7 @@ class RowTemplate implements \Iterator
 
     /**
      * @param string $colSource
-     * @param $colTarget
+     * @param string|string[] $colTarget
      * @param bool|null $checkMerge
      *
      * @return RowTemplate
@@ -101,6 +113,34 @@ class RowTemplate implements \Iterator
                     }
                 }
                 $this->addCell($col, $cell);
+            }
+            $this->lastAddedCells = $colTarget;
+        }
+
+        return $this;
+    }
+
+    public function removeCell(string $col): RowTemplate
+    {
+        $col = strtoupper($col);
+        if (isset($this->cells[$col])) {
+            $this->cells[$col]['__removed'] = 1;
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param string[] $cols
+     *
+     * @return $this
+     */
+    public function removeCells(array $cols): RowTemplate
+    {
+        foreach ($cols as $col) {
+            $col = strtoupper($col);
+            if (isset($this->cells[$col])) {
+                $this->cells[$col]['__removed'] = 1;
             }
         }
 
@@ -171,13 +211,45 @@ class RowTemplate implements \Iterator
         return $this->attribute('ht');
     }
 
-    public function setValue($colLetter, $value): RowTemplate
+    /**
+     * @param string $colLetter
+     *
+     * @return mixed|null
+     */
+    public function getValue(string $colLetter)
     {
+        $colLetter = strtoupper($colLetter);
+
+        return$this->cells[$colLetter]['v'] ?? null;
+    }
+
+    public function getValues(): array
+    {
+        $values = [];
+        foreach ($this->cells as $col => $cell) {
+            $values[$col] = $this->getValue($col);
+        }
+
+        return $values;
+    }
+
+    /**
+     * @param string $colLetter
+     * @param mixed $value
+     *
+     * @return $this
+     */
+    public function setValue(string $colLetter, $value): RowTemplate
+    {
+        $colLetter = strtoupper($colLetter);
         if ($value && is_string($value) && $value[0] === '=') {
             $this->cells[$colLetter]['f'] = $value;
             $this->cells[$colLetter]['v'] = '';
         }
         else {
+            if (!is_scalar($value)) {
+                throw new Exception('Value for column "' . $colLetter . '" is not scalar');
+            }
             $this->cells[$colLetter]['v'] = $value;
         }
         if (!isset($this->cells[$colLetter]['t'])) {
@@ -187,10 +259,53 @@ class RowTemplate implements \Iterator
         return $this;
     }
 
+    /**
+     * @param array $values
+     *
+     * @return $this
+     */
     public function setValues(array $values): RowTemplate
     {
         foreach ($values as $colLetter => $value) {
             $this->setValue($colLetter, $value);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param $value
+     *
+     * @return $this
+     */
+    public function withValue($value): RowTemplate
+    {
+        if ($this->lastAddedCells) {
+            $colLetter = array_key_last($this->lastAddedCells);
+            $this->setValue($colLetter, $value);
+        }
+        else {
+            throw new Exception('There is no added cell to assign a value to');
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param array $values
+     *
+     * @return $this
+     */
+    public function withValues(array $values): RowTemplate
+    {
+        if (!$this->lastAddedCells) {
+            throw new Exception('There are no added cells to assign values to');
+        }
+        $num = -1;
+        foreach ($this->lastAddedCells as $colLetter) {
+            if (isset($values[++$num])) {
+                $this->setValue($colLetter, $values[$num]);
+            }
         }
 
         return $this;

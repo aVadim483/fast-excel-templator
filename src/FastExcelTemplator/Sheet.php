@@ -509,6 +509,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      */
     public function transferRowsUntil(?int $maxRowNum = null, $callback = null): Sheet
     {
+        $skippedRows = 0;
         if ($maxRowNum === null || $maxRowNum > $this->lastReadRowNum) {
             foreach ($this->readRow() as $sourceRowNum => $rowData) {
                 if (!$maxRowNum || $sourceRowNum <= $maxRowNum) {
@@ -517,15 +518,31 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                         $targetRowNum = $sourceRowNum;
                     }
                     if ($callback) {
-                        $rowData = $callback($targetRowNum, $rowData);
+                        $res = $callback($sourceRowNum, $targetRowNum - $skippedRows, $rowData);
+                        if ($res === null) {
+                            $skippedRows++;
+                            continue;
+                        }
+                        if ($res === false) {
+                            break;
+                        }
+                        if ($res instanceof RowTemplate) {
+                            $rowData = $res;
+                        }
                     }
                     if ($height = $rowData->rowHeight()) {
-                        $this->sheetWriter->setRowHeight($targetRowNum, $height);
+                        $this->sheetWriter->setRowHeight($targetRowNum - $skippedRows, $height);
                     }
+                    $offsetColIdx = 0;
                     foreach ($rowData->cells() as $colLetter => $cellData) {
-                        $cellAddress = $colLetter . $targetRowNum;
-                        $cellAddressIdx = ['row_idx' => $targetRowNum - 1, 'col_idx' => Helper::colIndex($colLetter)];
-                        $this->_writeWithStyle($cellAddress, $cellAddressIdx, $cellData);
+                        if (!empty($cellData['__removed'])) {
+                            $offsetColIdx++;
+                        }
+                        else {
+                            $cellAddress = $colLetter . ($targetRowNum - $skippedRows);
+                            $cellAddressIdx = ['row_idx' => $targetRowNum - $skippedRows - 1, 'col_idx' => Helper::colIndex($colLetter) - $offsetColIdx];
+                            $this->_writeWithStyle($cellAddress, $cellAddressIdx, $cellData);
+                        }
                     }
                     $this->sheetWriter->nextRow();
                 }
@@ -551,6 +568,18 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
     public function transferRows(?int $countRows = null, $callback = null): Sheet
     {
         return $this->transferRowsUntil($countRows ? ($this->lastReadRowNum + $countRows) : null, $callback);
+    }
+
+    /**
+     * Transfers all rows from template to output
+     *
+     * @param mixed $callback function ($rowNum, $rowData)
+     *
+     * @return Sheet|false|null Sheet - write to output and continue; null - skip row; false - break
+     */
+    public function rows($callback): Sheet
+    {
+        return $this->transferRows(null, $callback);
     }
 
     /**

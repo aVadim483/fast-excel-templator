@@ -28,7 +28,7 @@ Use `composer` to install **FastExcelTemplator** into your project:
 composer require avadim/fast-excel-templator
 ```
 
-## Usage
+## Templates Usage
 
 Example of template
 
@@ -109,7 +109,82 @@ $excel->save();
 
 You can find code examples in */demo* folder
 
-## List of functions
+## Modification of Spreadsheets
+
+Use the ```row()``` method to read rows, modify them using callback, and write them to the output file.
+
+```php
+use avadim\FastExcelTemplator\Excel;
+
+$excel = Excel::template($tpl, $out);
+$sheet = $excel->sheet();
+
+$sheet->rows(null, function ($sourceRowNum, $targetRowNum, $rowData) {
+    // $rowData is an instance of the RowTemplate
+
+    // skip the first row
+    if ($rowNum === 1) {
+        return null;
+    }
+    // $rowData
+    // if a value of cell 'A' then break
+    if ($rowData->getValue('A') > 5) {
+        return false;
+    }
+    // write value to cell 'B'; if the cell 'B' does not exist, it will be created
+    $rowData->setValue('B', $rowData->getValue('A') * 2);
+    // return modified row
+    return $rowData;
+});
+$excel->save();
+```
+You can add one or more cells to the end of a row in the callback function.
+The styles and value from the source cell will be copied to the new cell.
+If you do not explicitly specify a source cell, the last cell in the row will be used as the source.
+
+```php
+$sheet->rows(null, function ($sourceRowNum, $targetRowNum, $rowData) {
+    // Clone the last cell of the row and add them to the end of the row and assign it the value 123
+    $rowData->appendCell()->withValue(123);
+
+    return $rowData;
+});
+
+$sheet->rows(null, function ($sourceRowNum, $targetRowNum, $rowData) {
+    // Clone the cell 'B' and add them to the end
+    $rowData->appendCell('B');
+
+    // Clone the last cell three times
+    $rowData->appendCell(null, 3)->withValues([111, 222, 333]);
+
+    return $rowData;
+});
+```
+
+Also, you can clone any cell (with styles and value) to other cell
+
+```php
+$sheet->rows(null, function ($sourceRowNum, $targetRowNum, $rowData) {
+    // Clone the cell 'A' to the cell 'E' and assign it the SUM()
+    $rowData->cloneCell('A', 'E')
+        ->withValues(['=SUM(A' . $targetRowNum . ':E' . $targetRowNum . ')']);
+
+    return $rowData;
+});
+```
+
+If you need to remove cells, use the ```removeCells()```.
+
+```php
+$sheet->rows(null, function ($sourceRowNum, $targetRowNum, $rowData) {
+    // Clone the cell 'A' to the cell 'E' and assign it the SUM()
+    $rowData->removeCells(['B', 'D']);
+
+    return $rowData;
+});
+```
+
+## List of Functions
 ### Class Excel
 
 Excel::template($template, $output): Excel -- Open template file
