@@ -433,23 +433,6 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         return null;
     }
 
-
-    /**
-     * Write values to the current row
-     *
-     * @param array $rowValues Values of cells
-     * @param array|null $rowStyle Style applied to the entire row
-     * @param array|null $cellStyles Styles of specified cells in the row
-     *
-     * @return $this
-     */
-    public function writeRow(array $rowValues = [], ?array $rowStyle = null, ?array $cellStyles = null): Sheet
-    {
-        $this->sheetWriter->writeRow($rowValues, $rowStyle, $cellStyles);
-
-        return $this;
-    }
-
     /**
      * Last read row number
      *
@@ -614,8 +597,45 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         return $this->skipRowsUntil($countRows ? ($this->lastReadRowNum + $countRows) : null);
     }
 
-
+    /**
+     * Empty method for compatibility
+     *
+     * @return void
+     */
     public function saveSheet()
     {
+
     }
+
+    /**
+     * Write values to the current row
+     *
+     * @param array $rowValues Values of cells
+     * @param array|null $rowStyle Style applied to the entire row
+     * @param array|null $cellStyles Styles of specified cells in the row
+     *
+     * @return $this
+     */
+    public function writeRow(array $rowValues = [], ?array $rowStyle = null, ?array $cellStyles = null): Sheet
+    {
+        $this->sheetWriter->writeRow($rowValues, $rowStyle, $cellStyles);
+
+        return $this;
+    }
+
+    /**
+     * Write value to the current cell and move a pointer to the next cell in the row
+     *
+     * @param mixed $value
+     * @param array|null $styles
+     *
+     * @return $this
+     */
+    public function writeCell($value, ?array $styles = null): Sheet
+    {
+        $this->sheetWriter->writeCell($value, $styles);
+
+        return $this;
+    }
+
 }

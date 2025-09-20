@@ -281,7 +281,7 @@ class RowTemplate implements \Iterator
     public function withValue($value): RowTemplate
     {
         if ($this->lastAddedCells) {
-            $colLetter = array_key_last($this->lastAddedCells);
+            $colLetter = end($this->lastAddedCells);
             $this->setValue($colLetter, $value);
         }
         else {
