@@ -199,6 +199,8 @@ class Excel extends ExcelReader
     }
 
     /**
+     * Set replacements of entire cell values for the sheet
+     *
      * @param array $params
      *
      * @return $this
@@ -213,6 +215,8 @@ class Excel extends ExcelReader
     }
 
     /**
+     * Set replacements of any occurring substrings
+     *
      * @param array $params
      *
      * @return $this

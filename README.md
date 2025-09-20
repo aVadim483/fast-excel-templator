@@ -185,31 +185,10 @@ $sheet->rows(null, function ($sourceRowNum, $targetRowNum, $rowData) {
 ```
 
 ## List of Functions
-### Class Excel
 
-Excel::template($template, $output): Excel -- Open template file
-
-* sheet(?string $name = null): ?Sheet -- Select the specified sheet
-* fill(array $replacement) -- Set replacements of the entire cell value for all sheets
-* replace(array $replacement) -- Set replacements of substrings in a cells for all sheets
-* save(?string $fileName = null, ?bool $overWrite = true): bool -- Save generated XLSX-file
-* download(string $name = null): void -- Download generated file to client (send to browser)
-
-### Class Sheet
-
-* fill(array $replacement) -- Set replacements of the entire cell value for the sheet
-* replace(array $replacement) -- Set replacements of substrings in a cell for the sheet
-* getRowTemplate(int $rowNumber, ?bool $savePointerPosition = false) -- Gets template from the row
-* getRowTemplates(int $rowNumberMin, int $rowNumberMax, ?bool $savePointerPosition = false) -- Gets row template
-* transferRows(?int $countRows = null, $callback = null) -- Transfers rows from template to output
-* transferRowsUntil(?int $maxRowNum = null, $callback = null) -- Transfers rows from template to output
-* insertRow($rowTemplates, ?array $cellData = [])
-* skipRows(?int $countRows = null)
-* skipRowsUntil(?int $maxRowNum = null)
-
-### Class RowTemplateCollection
-
-* cloneCell(string $colSource, $colTarget, ?bool $checkMerge = false): RowTemplateCollection
+* [Class Excel](docs/91-api-class-excel.md)
+* [Class Sheet](docs/92-api-class-sheet.md)
+* [Class RowTemplate](docs/93-api-class-row-template.md)
 
 ## Do you like FastExcelTemplator?
 
