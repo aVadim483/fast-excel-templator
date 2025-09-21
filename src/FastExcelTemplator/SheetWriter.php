@@ -28,7 +28,11 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
 
     public function getSheetViews(): array
     {
-        return $this->sheetViews;
+        //return $this->sheetViews;
+        if (isset($this->sheetViews[0]['_attr'])) {
+            $this->sheetViews[0] = $this->sheetViews[0]['_attr'];
+        }
+        return parent::getSheetViews();
     }
 
     /**
@@ -110,7 +114,15 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
                 $value = str_replace($this->replace['keys'], $this->replace['values'], $value);
             }
         }
-        return parent::_setCellData($cellAddress, $value, $styles, $merge, $changeCurrent);
+        if (is_array($value) && isset($value['value'])) {
+            $result = parent::_setCellData($cellAddress, $value['value'], $styles, $merge, $changeCurrent);
+            $this->cells['values'][$cellAddress['row_idx']][$cellAddress['col_idx']] = $value;
+        }
+        else {
+            $result = parent::_setCellData($cellAddress, $value, $styles, $merge, $changeCurrent);
+        }
+
+        return $result;
     }
 
     /**
@@ -122,6 +134,17 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
      */
     public function _writeToCellByIdx($cellAddress, $value, $styles = null)
     {
+
+        if (isset($value['t']) && $value['t'] === 'e' && isset($this->cells['nodes'][$cellAddress['row_idx']][$cellAddress['col_idx']])) {
+            $cell = $this->cells['nodes'][$cellAddress['row_idx']][$cellAddress['col_idx']];
+            $attributes = [];
+            foreach ($cell->attributes as $attr) {
+                if (!in_array($attr->nodeName, ['r', 's', 't'])) {
+                    $attributes[$attr->nodeName] = $attr->nodeValue;
+                }
+            }
+            $value = ['value' => $value['v'], 'attr' => $attributes];
+        }
         $this->_setCellData($cellAddress, $value, $styles, false, true);
     }
 

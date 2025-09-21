@@ -32,6 +32,8 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
     protected ?Reader $rowTemplateReader = null;
     protected int $rowTemplateNo = 0;
 
+    protected bool $postReadDone  = false;
+
 
     /**
      * @param $sheetName
@@ -88,8 +90,19 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
 
     public function postRead($xmlReader)
     {
-        $tags = ['autoFilter', 'pageMargins', 'pageSetup', 'drawing', 'legacyDrawing'];
-        //$tags = ['pageMargins', 'pageSetup', 'drawing', 'legacyDrawing'];
+        if ($this->postReadDone) {
+            return;
+        }
+
+        // move to the next node after <sheetData>
+        do {
+            if ($xmlReader->nodeType === \XMLReader::END_ELEMENT && $xmlReader->name === 'sheetData') {
+                $xmlReader->next();
+                break;
+            }
+        } while ($xmlReader->read());
+
+        $tags = ['autoFilter', 'pageMargins', 'pageSetup', 'drawing', 'legacyDrawing', 'headerFooter'];
         while ($xmlReader->read()) {
             if ($xmlReader->nodeType === \XMLReader::ELEMENT) {
                 if (in_array($xmlReader->name, $tags)) {
@@ -100,6 +113,14 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                             $this->sheetWriter->setAutofilter(1, 1);
                         }
                     }
+                    elseif ($xmlReader->name === 'headerFooter') {
+                        $options = $xmlReader->getAllAttributes();
+                        $node = $xmlReader->expand();
+                        foreach ($node->childNodes as $child) {
+                            $options[$child->nodeName] = str_replace('&amp;', '&', $child->nodeValue);
+                        }
+                        $this->sheetWriter->setHeaderFooterOptions($options);
+                    }
                     else {
                         $options = $xmlReader->getAllAttributes();
                         if ($options) {
@@ -108,8 +129,8 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                     }
                 }
             }
-
         }
+        $this->postReadDone = true;
     }
 
     /**
@@ -469,6 +490,13 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                 $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellData['v'], ['format' => $pattern]);
                 $numberFormatType = 'n_date';
             }
+            if ($cellData['t'] === 'error' && $cellData['v'] && $cellData['v'][0] === '#') {
+                $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, ['v' => $cellData['v'], 't' => 'e']);
+                if (empty($cellData['s'])) {
+                    $cellData['s'] = 0;
+                }
+                $numberFormatType = 'n_error';
+            }
             else {
                 $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellData['v']);
             }
@@ -536,6 +564,10 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                     break;
                 }
             }
+
+            $xmlReader = $this->getReader();
+            // read page options and others
+            $this->postRead($xmlReader);
         }
         return $this;
     }
@@ -566,7 +598,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
     }
 
     /**
-     * Skip rows from template
+     * Skip rows from the template
      *
      * @param int|null $maxRowNum Max row of template
      *
@@ -586,7 +618,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
     }
 
     /**
-     * Skip rows from template
+     * Skip rows from the template
      *
      * @param int|null $countRows Number of rows
      *
