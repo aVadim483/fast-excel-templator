@@ -4,6 +4,7 @@ namespace avadim\FastExcelTemplator;
 
 use avadim\FastExcelHelper\Helper;
 use avadim\FastExcelWriter\Interfaces\InterfaceSheetWriter;
+use avadim\FastExcelWriter\Style\Style;
 
 class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceSheetWriter
 {
@@ -91,15 +92,15 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
     }
 
     /**
-     * @param $cellAddress
-     * @param $value
-     * @param $styles
-     * @param bool|null $merge
-     * @param bool|null $changeCurrent
+     * @param string|array|null $cellAddress
+     * * @param mixed $value
+     * * @param array|Style|null $styles
+     * * @param int|null $mergeFlag
+     * * @param bool|null $changeCurrent
      *
      * @return array
      */
-    protected function _setCellData($cellAddress, $value, $styles = null, ?bool $merge = false, ?bool $changeCurrent = false): array
+    protected function _setCellData($cellAddress, $value, $styles = null, ?int $mergeFlag = 0, ?bool $changeCurrent = false): array
     {
         if ($value && is_string($value)) {
             if ($this->fill) {
@@ -115,11 +116,11 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
             }
         }
         if (is_array($value) && isset($value['value'])) {
-            $result = parent::_setCellData($cellAddress, $value['value'], $styles, $merge, $changeCurrent);
+            $result = parent::_setCellData($cellAddress, $value['value'], $styles, $mergeFlag, $changeCurrent);
             $this->cells['values'][$cellAddress['row_idx']][$cellAddress['col_idx']] = $value;
         }
         else {
-            $result = parent::_setCellData($cellAddress, $value, $styles, $merge, $changeCurrent);
+            $result = parent::_setCellData($cellAddress, $value, $styles, $mergeFlag, $changeCurrent);
         }
 
         return $result;
