@@ -116,7 +116,7 @@ class Excel extends ExcelReader
                 if (!empty($attributes['style'])) {
                     $style = $this->getCompleteStyleByIdx($attributes['style'], true);
                     if ($style) {
-                        $sheet->sheetWriter->setColStyles(Helper::colLetter($colIdx + 1), $style);
+                        $sheet->sheetWriter->setColStyle(Helper::colLetter($colIdx + 1), $style);
                     }
                 }
             }
