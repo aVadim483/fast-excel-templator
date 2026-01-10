@@ -541,6 +541,7 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
                             $rowData = $res;
                         }
                     }
+                    $this->sheetWriter->setRowAttributes($targetRowNum - $skippedRows, $rowData->getAttributes());
                     if ($height = $rowData->rowHeight()) {
                         $this->sheetWriter->setRowHeight($targetRowNum - $skippedRows, $height);
                     }

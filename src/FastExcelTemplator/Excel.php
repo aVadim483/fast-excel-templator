@@ -41,7 +41,7 @@ class Excel extends ExcelReader
         $this->templateFile = $templateFile;
         $options['style_manager'] = StyleManager::class;
         $this->excelWriter = new ExcelWriter($options);
-        $this->styleManager = $this->excelWriter->style;
+        $this->styleManager = $this->excelWriter->styleManager;
         $this->styleManager->excelTemplator = $this;
         $this->styleManager->loadStyles();
 

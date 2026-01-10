@@ -149,6 +149,12 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
         $this->_setCellData($cellAddress, $value, $styles, false, true);
     }
 
+    /**
+     * @param $oldRange
+     * @param $newRange
+     *
+     * @return void
+     */
     public function updateMergedCells($oldRange, $newRange)
     {
         if (isset($this->mergeCells[$oldRange])) {
@@ -163,5 +169,21 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
     public function currentRowNum(): int
     {
         return $this->currentRowIdx + 1;
+    }
+
+    /**
+     * @param int $rowNum
+     * @param array $attributes
+     *
+     * @return $this
+     */
+    public function setRowAttributes(int $rowNum, array $attributes): SheetWriter
+    {
+        if (isset($attributes['r'])) {
+            unset($attributes['r']);
+        }
+        $this->rowAttributes[$rowNum - 1] = $attributes;
+
+        return $this;
     }
 }

@@ -13,12 +13,13 @@ class StyleManager extends \avadim\FastExcelWriter\Style\StyleManager
     public function loadStyles()
     {
         if (!$this->loaded) {
+            $this->elements = [];
             $reader = new Reader($this->excelTemplator->templateFile());
             $reader->openZip('xl/styles.xml');
             $sectionName = null;
             while ($reader->read()) {
                 if ($reader->nodeType === \XMLReader::ELEMENT) {
-                    if (in_array($reader->name, ['fonts', 'fills', 'borders', 'cellStyleXfs', 'cellXfs', 'cellStyles', 'dxfs'])) {
+                    if (in_array($reader->name, ['fonts', 'fills', 'borders', 'cellStyleXfs', 'cellXfs', 'cellStyles'])) {
                         $sectionName = $reader->name;
                         continue;
                     }
@@ -28,6 +29,7 @@ class StyleManager extends \avadim\FastExcelWriter\Style\StyleManager
                         $value = ['tag' => $tag];
                         if ($name === 'xf' || $name === 'cellStyle') {
                             foreach ($reader->getAllAttributes() as $attrName => $attrValue) {
+                                // camelCase to snake_case
                                 $attrName = '_' . strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $attrName));
                                 $value[$attrName] = $attrValue;
                             }

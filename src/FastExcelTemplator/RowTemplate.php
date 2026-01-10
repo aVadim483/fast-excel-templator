@@ -441,6 +441,11 @@ class RowTemplate implements \Iterator
         return $this;
     }
 
+    /**
+     * @param $style
+     *
+     * @return $this
+     */
     public function setRowStyle($style): RowTemplate
     {
         $sheet = $this->getSheetTemplate();
@@ -449,7 +454,10 @@ class RowTemplate implements \Iterator
             $styleManager = $sheet->excel->styleManager;
             $style = StyleManager::normalize($style);
             $styleIdx = $styleManager->addStyle($style);
-            $this->attributes['s'] = $styleIdx;
+            $attributes = $this->getAttributes();
+            $attributes['s'] = $styleIdx;
+            $attributes['customFormat'] = '1';
+            $this->setAttributes($attributes);
         }
 
         return $this;
