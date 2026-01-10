@@ -9,7 +9,7 @@ use avadim\FastExcelWriter\Interfaces\InterfaceSheetWriter;
 /**
  *
  */
-class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReader
+class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReader
 {
     public SheetWriter $sheetWriter;
 
@@ -190,7 +190,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      *
      * @return $this
      */
-    public function fill(array $params): Sheet
+    public function fill(array $params): SheetTemplate
     {
         $this->sheetWriter->setFillValues($params);
 
@@ -204,7 +204,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      *
      * @return $this
      */
-    public function replace(array $params): Sheet
+    public function replace(array $params): SheetTemplate
     {
         $this->sheetWriter->setReplaceValues($params);
 
@@ -310,7 +310,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
                 if ($xmlReader->nodeType === \XMLReader::ELEMENT && $xmlReader->name === 'row') {
                     $r = (int)$xmlReader->getAttribute('r');
                     if (isset($findNum[$r])) {
-                        $rowTemplate = new RowTemplate();
+                        $rowTemplate = (new RowTemplate())->setSheetTemplate($this);
                         $rowTemplate->setAttributes($xmlReader->getAllAttributes());
                         while ($xmlReader->read() && !($xmlReader->nodeType === \XMLReader::END_ELEMENT && $xmlReader->name === 'row')) {
                             if ($xmlReader->nodeType === \XMLReader::ELEMENT && $xmlReader->name === 'c') {
@@ -356,9 +356,9 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      * @param array|RowTemplateCollection|RowTemplate $row
      * @param array|null $cellData
      *
-     * @return Sheet
+     * @return SheetTemplate
      */
-    public function insertRow($row, ?array $cellData = []): Sheet
+    public function insertRow($row, ?array $cellData = []): SheetTemplate
     {
         if (is_array($row)) {
             $cellData = $row;
@@ -434,7 +434,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
         }
         while ($rowNum = $this->readGenerator->key()) {
             $rowData = $this->readGenerator->current();
-            $rowTemplate = new RowTemplate();
+            $rowTemplate = (new RowTemplate())->setSheetTemplate($this);
             if (isset($rowData['__row'])) {
                 $rowTemplate->setAttributes($rowData['__row']);
             }
@@ -516,9 +516,9 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      * @param int|null $maxRowNum Max row of template
      * @param $callback
      *
-     * @return Sheet
+     * @return SheetTemplate
      */
-    public function transferRowsUntil(?int $maxRowNum = null, $callback = null): Sheet
+    public function transferRowsUntil(?int $maxRowNum = null, $callback = null): SheetTemplate
     {
         $skippedRows = 0;
         if ($maxRowNum === null || $maxRowNum > $this->lastReadRowNum) {
@@ -578,9 +578,9 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      * @param int|null $countRows Number of rows
      * @param $callback
      *
-     * @return Sheet
+     * @return SheetTemplate
      */
-    public function transferRows(?int $countRows = null, $callback = null): Sheet
+    public function transferRows(?int $countRows = null, $callback = null): SheetTemplate
     {
         return $this->transferRowsUntil($countRows ? ($this->lastReadRowNum + $countRows) : null, $callback);
     }
@@ -590,9 +590,9 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      *
      * @param mixed $callback function ($rowNum, $rowData)
      *
-     * @return Sheet|false|null Sheet - write to output and continue; null - skip row; false - break
+     * @return SheetTemplate|false|null Sheet - write to output and continue; null - skip row; false - break
      */
-    public function rows($callback): Sheet
+    public function rows($callback): SheetTemplate
     {
         return $this->transferRows(null, $callback);
     }
@@ -602,9 +602,9 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      *
      * @param int|null $maxRowNum Max row of template
      *
-     * @return Sheet
+     * @return SheetTemplate
      */
-    public function skipRowsUntil(?int $maxRowNum = null): Sheet
+    public function skipRowsUntil(?int $maxRowNum = null): SheetTemplate
     {
         if ($maxRowNum === null || $maxRowNum > $this->lastReadRowNum) {
             foreach ($this->readRow() as $rowNum => $rowData) {
@@ -622,9 +622,9 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      *
      * @param int|null $countRows Number of rows
      *
-     * @return Sheet
+     * @return SheetTemplate
      */
-    public function skipRows(?int $countRows = null): Sheet
+    public function skipRows(?int $countRows = null): SheetTemplate
     {
         return $this->skipRowsUntil($countRows ? ($this->lastReadRowNum + $countRows) : null);
     }
@@ -648,7 +648,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      *
      * @return $this
      */
-    public function writeRow(array $rowValues = [], ?array $rowStyle = null, ?array $cellStyles = null): Sheet
+    public function writeRow(array $rowValues = [], ?array $rowStyle = null, ?array $cellStyles = null): SheetTemplate
     {
         $this->sheetWriter->writeRow($rowValues, $rowStyle, $cellStyles);
 
@@ -663,7 +663,7 @@ class Sheet extends \avadim\FastExcelReader\Sheet implements InterfaceSheetReade
      *
      * @return $this
      */
-    public function writeCell($value, ?array $styles = null): Sheet
+    public function writeCell($value, ?array $styles = null): SheetTemplate
     {
         $this->sheetWriter->writeCell($value, $styles);
 

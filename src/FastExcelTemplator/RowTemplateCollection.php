@@ -6,7 +6,7 @@ use avadim\FastExcelHelper\Helper;
 
 class RowTemplateCollection implements \Iterator
 {
-    protected Sheet $sheet;
+    protected SheetTemplate $sheet;
     /** @var RowTemplate[]  */
     protected array $rowTemplates = [];
     protected ?int $pointer = null;

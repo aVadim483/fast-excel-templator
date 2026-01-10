@@ -16,9 +16,13 @@ class Excel extends ExcelReader
 
     public ExcelWriter $excelWriter;
 
+    public StyleManager $styleManager;
+
     protected string $templateFile;
 
-    /** @var Sheet[] */
+    protected string $outputFile;
+
+    /** @var SheetTemplate[] */
     protected array $sheets = [];
 
 
@@ -35,11 +39,33 @@ class Excel extends ExcelReader
         self::$instance = $this;
 
         $this->templateFile = $templateFile;
+        $options['style_manager'] = StyleManager::class;
         $this->excelWriter = new ExcelWriter($options);
+        $this->styleManager = $this->excelWriter->style;
+        $this->styleManager->excelTemplator = $this;
+        $this->styleManager->loadStyles();
+
         if ($outputFile) {
             $this->excelWriter->setFileName($outputFile);
+            $this->outputFile = $outputFile;
         }
         $this->_importSheets();
+    }
+
+    /**
+     * @return string
+     */
+    public function templateFile(): string
+    {
+        return $this->templateFile;
+    }
+
+    /**
+     * @return string
+     */
+    public function outputFile(): string
+    {
+        return $this->outputFile;
     }
 
     /**
@@ -142,11 +168,11 @@ class Excel extends ExcelReader
      * @param $path
      * @param $excel
      *
-     * @return Sheet
+     * @return SheetTemplate
      */
-    public static function createSheet(string $sheetName, $sheetId, $file, $path, $excel): Sheet
+    public static function createSheet(string $sheetName, $sheetId, $file, $path, $excel): SheetTemplate
     {
-        return new Sheet($sheetName, $sheetId, $file, $path, $excel);
+        return new SheetTemplate($sheetName, $sheetId, $file, $path, $excel);
     }
 
     public static function createReader(string $file, ?array $parserProperties = []): Reader
@@ -167,9 +193,9 @@ class Excel extends ExcelReader
     /**
      * @param string|null $name
      *
-     * @return \avadim\FastExcelReader\Sheet|Sheet|null
+     * @return \avadim\FastExcelReader\Sheet|SheetTemplate|null
      */
-    public function sheet(?string $name = null): ?Sheet
+    public function sheet(?string $name = null): ?SheetTemplate
     {
         return parent::sheet($name);
     }
@@ -181,9 +207,9 @@ class Excel extends ExcelReader
      * @param string|null $areaRange
      * @param bool|null $firstRowKeys
      *
-     * @return \avadim\FastExcelReader\Sheet|Sheet|null
+     * @return \avadim\FastExcelReader\Sheet|SheetTemplate|null
      */
-    public function getSheet(?string $name = null, ?string $areaRange = null, ?bool $firstRowKeys = false): Sheet
+    public function getSheet(?string $name = null, ?string $areaRange = null, ?bool $firstRowKeys = false): SheetTemplate
     {
         return parent::getSheet($name, $areaRange, $firstRowKeys);
     }
@@ -191,7 +217,7 @@ class Excel extends ExcelReader
     /**
      * Array of all sheets
      *
-     * @return Sheet[]
+     * @return SheetTemplate[]
      */
     public function sheets(): array
     {
@@ -250,7 +276,7 @@ class Excel extends ExcelReader
             $sheet->saveSheet();
         }
 
-        return $this->excelWriter->replaceSheetsAndSave($this->file, $fileName);
+        return $this->excelWriter->replaceSheetsAndSave($this->file, $fileName, $this->styleManager->loaded);
     }
 
     /**

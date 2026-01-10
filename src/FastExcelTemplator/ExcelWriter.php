@@ -22,12 +22,13 @@ class ExcelWriter extends \avadim\FastExcelWriter\Excel
     }
 
     /**
-     * @param $inputFile
-     * @param $outputFile
+     * @param string $inputFile
+     * @param string $outputFile
+     * @param bool|null $replaceStyles
      *
      * @return bool
      */
-    public function replaceSheetsAndSave($inputFile, $outputFile): bool
+    public function replaceSheetsAndSave(string $inputFile, string $outputFile, ?bool $replaceStyles = false): bool
     {
         $relationShips = [
             'rel_id' => ['workbook' => 0],
@@ -35,6 +36,9 @@ class ExcelWriter extends \avadim\FastExcelWriter\Excel
 
         $result = $this->writer->_replaceSheets($inputFile, $outputFile, $relationShips);
         if ($result) {
+            if ($replaceStyles) {
+                $this->writer->_replaceStyles($outputFile);
+            }
             $zip = new \ZipArchive();
             if (!$zip->open($outputFile)) {
                 ExceptionFile::throwNew('Unable to open zip "%s"', $outputFile);

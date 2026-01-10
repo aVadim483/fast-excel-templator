@@ -6,6 +6,8 @@ use avadim\FastExcelHelper\Helper;
 
 class RowTemplate implements \Iterator
 {
+    protected ?SheetTemplate $sheetTemplate = null;
+
     protected array $cells = [];
 
     protected array $attributes = [];
@@ -50,23 +52,97 @@ class RowTemplate implements \Iterator
     }
 
     /**
-     * @param string $colLetter
-     * @param $cell
+     * @param SheetTemplate $sheetTemplate
      *
      * @return $this
      */
-    public function addCell(string $colLetter, $cell): RowTemplate
+    public function setSheetTemplate(SheetTemplate $sheetTemplate): RowTemplate
     {
+        $this->sheetTemplate = $sheetTemplate;
+
+        return $this;
+    }
+
+    /**
+     * @return SheetTemplate|null
+     */
+    public function getSheetTemplate(): ?SheetTemplate
+    {
+        return $this->sheetTemplate;
+    }
+
+    /**
+     * @param $colLetter
+     * @param $value
+     * @param mixed|null $style
+     *
+     * @return array
+     */
+    protected function _createCell($colLetter, $value, $style = null): array
+    {
+        if ($colLetter) {
+            if (is_numeric($colLetter)) {
+                $colLetter = Helper::colLetter($colLetter);
+            }
+            $address = strtoupper($colLetter) . $this->rowNumber();
+        }
+        else {
+            $address = null;
+        }
+        $cell = [
+            'v' => $value,
+            's' => 0,
+            'f' => null,
+            't' => 'GENERAL',
+            'b' => null,
+            '__sourceAddress' => $address,
+        ];
+        $sheet = $this->getSheetTemplate();
+        if ($sheet && $style) {
+            /** @var StyleManager $styleManager */
+            $styleManager = $sheet->excel->styleManager;
+            $style = StyleManager::normalize($style);
+            $cell['s'] = $styleManager->addStyle($style);
+        }
+
+        return $cell;
+    }
+
+    /**
+     * @param string $colLetter
+     * @param $value
+     * @param $style
+     *
+     * @return $this
+     *
+     * @example
+     * $row->addCell('G', $value);
+     */
+    public function addCell(string $colLetter, $value, $style = null): RowTemplate
+    {
+        if (is_scalar($value)) {
+            $cell = $this->_createCell($colLetter, $value, $style);
+        }
+        else {
+            $cell = $value;
+        }
+
         $this->cells[strtoupper($colLetter)] = $cell;
 
         return $this;
     }
 
     /**
+     * Append a source cell to the end of the row
+     *
      * @param string|null $colSource
      * @param int|null $number
      *
      * @return $this
+     *
+     * @example
+     * $row->appendCell('E'); // Append cell like E to the end of the row
+     * $row->appendCell('E', 2); // Append two cells like E to the end of the row
      */
     public function appendCell(?string $colSource = null, ?int $number = null): RowTemplate
     {
@@ -120,6 +196,14 @@ class RowTemplate implements \Iterator
         return $this;
     }
 
+    /**
+     * @param string $col
+     *
+     * @return $this
+     *
+     * @example
+     * $row->removeCell('G');
+     */
     public function removeCell(string $col): RowTemplate
     {
         $col = strtoupper($col);
@@ -134,6 +218,9 @@ class RowTemplate implements \Iterator
      * @param string[] $cols
      *
      * @return $this
+     *
+     * @example
+     * $row->removeCells(['G', 'H']);
      */
     public function removeCells(array $cols): RowTemplate
     {
@@ -212,6 +299,8 @@ class RowTemplate implements \Iterator
     }
 
     /**
+     * Returns value of cell
+     *
      * @param string $colLetter
      *
      * @return mixed|null
@@ -223,6 +312,11 @@ class RowTemplate implements \Iterator
         return$this->cells[$colLetter]['v'] ?? null;
     }
 
+    /**
+     * Get values of all cells of the row
+     *
+     * @return array
+     */
     public function getValues(): array
     {
         $values = [];
@@ -238,6 +332,9 @@ class RowTemplate implements \Iterator
      * @param mixed $value
      *
      * @return $this
+     *
+     * @example
+     * $row->setValue('G', '=SUM(A1:A10)');
      */
     public function setValue(string $colLetter, $value): RowTemplate
     {
@@ -263,6 +360,9 @@ class RowTemplate implements \Iterator
      * @param array $values
      *
      * @return $this
+     *
+     * @example
+     * $row->setValues(['G' => '=SUM(A1:A10)', 'H' => 'value']);
      */
     public function setValues(array $values): RowTemplate
     {
@@ -274,9 +374,14 @@ class RowTemplate implements \Iterator
     }
 
     /**
+     * Assign a value to the last added cell
+     *
      * @param $value
      *
      * @return $this
+     *
+     * @example
+     * $row->appendCell('E')->withValue('value');
      */
     public function withValue($value): RowTemplate
     {
@@ -292,9 +397,14 @@ class RowTemplate implements \Iterator
     }
 
     /**
+     * Assign values to the last added cells
+     *
      * @param array $values
      *
      * @return $this
+     *
+     * @example
+     * $row->appendCell('E', 2)->withValues(['value1', 'value2']);
      */
     public function withValues(array $values): RowTemplate
     {
@@ -306,6 +416,40 @@ class RowTemplate implements \Iterator
             if (isset($values[++$num])) {
                 $this->setValue($colLetter, $values[$num]);
             }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param string $colLetter
+     * @param $style
+     *
+     * @return $this
+     */
+    public function setCellStyle(string $colLetter, $style): RowTemplate
+    {
+        $colLetter = strtoupper($colLetter);
+        $cell = $this->_createCell($colLetter, '', $style);
+        if (!isset($this->cells[$colLetter])) {
+            $this->addCell($colLetter, $cell, $style);
+        }
+        else {
+            $this->cells[$colLetter]['s'] = $cell['s'];
+        }
+
+        return $this;
+    }
+
+    public function setRowStyle($style): RowTemplate
+    {
+        $sheet = $this->getSheetTemplate();
+        if ($sheet && $style) {
+            /** @var StyleManager $styleManager */
+            $styleManager = $sheet->excel->styleManager;
+            $style = StyleManager::normalize($style);
+            $styleIdx = $styleManager->addStyle($style);
+            $this->attributes['s'] = $styleIdx;
         }
 
         return $this;
