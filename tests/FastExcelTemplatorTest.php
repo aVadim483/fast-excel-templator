@@ -94,7 +94,7 @@ final class FastExcelTemplatorTest extends TestCase
 
         $excelReader = \avadim\FastExcelReader\Excel::open($out);
         $sheet = $excelReader->sheet();
-        $colAttributes = $sheet->getColAttributes();
+        $colAttributes = $sheet->getAllColAttributes();
         $this->assertEquals(250, (int)$colAttributes['C']['width']);
         $this->assertEquals(250, (int)$colAttributes['D']['width']);
 
@@ -103,8 +103,8 @@ final class FastExcelTemplatorTest extends TestCase
 
     public function test03()
     {
-        $tpl = __DIR__ . '/files/test-formulas.xlsx';
-        $out = __DIR__ . '/files/test-formulas-out.xlsx';
+        $tpl = __DIR__ . '/test_files/test-formulas.xlsx';
+        $out = __DIR__ . '/test_files/test-formulas-out.xlsx';
 
         $excel = Excel::template($tpl, $out);
 

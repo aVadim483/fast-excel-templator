@@ -2,29 +2,33 @@
 
 ---
 
-* [__construct()](#__construct)
-* [addCell()](#addcell)
-* [appendCell()](#appendcell)
-* [attribute()](#attribute) -- Source row attribute
-* [getAttributes()](#getattributes) -- All source row attributes
-* [setAttributes()](#setattributes)
-* [cells()](#cells)
-* [cloneCell()](#clonecell)
-* [current()](#current)
-* [key()](#key)
-* [next()](#next)
-* [removeCell()](#removecell)
-* [removeCells()](#removecells)
-* [rewind()](#rewind)
-* [rowHeight()](#rowheight) -- Source row height
-* [rowNumber()](#rownumber) -- Source row number
-* [valid()](#valid)
-* [getValue()](#getvalue)
-* [setValue()](#setvalue)
-* [getValues()](#getvalues)
-* [setValues()](#setvalues)
-* [withValue()](#withvalue)
-* [withValues()](#withvalues)
+* [__construct()](#__construct) – RowTemplate constructor
+* [addCell()](#addcell) – Add a cell to the row
+* [appendCell()](#appendcell) – Append a source cell to the end of the row
+* [attribute()](#attribute) – Source row attribute
+* [cells()](#cells) – Get all cells of the row
+* [cloneCell()](#clonecell) – Clone a cell
+* [current()](#current) – Return the current element
+* [getAttributes()](#getattributes) – All source row attributes
+* [getSheetTemplate()](#getsheettemplate) – Get sheet template
+* [getValue()](#getvalue) – Returns value of cell
+* [getValues()](#getvalues) – Get values of all cells of the row
+* [key()](#key) – Return the key of the current element
+* [next()](#next) – Move forward to next element
+* [removeCell()](#removecell) – Mark a cell as removed
+* [removeCells()](#removecells) – Mark multiple cells as removed
+* [rewind()](#rewind) – Rewind the Iterator to the first element
+* [rowHeight()](#rowheight) – Source row height
+* [rowNumber()](#rownumber) – Source row number
+* [setAttributes()](#setattributes) – Set row attributes
+* [setCellStyle()](#setcellstyle) – Set cell style
+* [setRowStyle()](#setrowstyle) – Set row style
+* [setSheetTemplate()](#setsheettemplate) – Set sheet template
+* [setValue()](#setvalue) – Set cell value
+* [setValues()](#setvalues) – Set multiple cell values
+* [valid()](#valid) – Checks if current position is valid
+* [withValue()](#withvalue) – Assign a value to the last added cell
+* [withValues()](#withvalues) – Assign values to the last added cells
 
 ---
 
@@ -35,11 +39,11 @@
 ```php
 public function __construct(?array $cellData = [])
 ```
-
+_RowTemplate constructor_
 
 ### Parameters
 
-* `$cellData`
+* `array|null $cellData`
 
 ---
 
@@ -48,14 +52,24 @@ public function __construct(?array $cellData = [])
 ---
 
 ```php
-public function addCell(string $colLetter, $cell): RowTemplate
+public function addCell(string $colLetter, $value, $style): RowTemplate
 ```
-
+_Add a cell to the row_
 
 ### Parameters
 
 * `string $colLetter`
-* `$cell`
+* `mixed $value`
+* `mixed|null $style`
+
+---
+
+### Examples
+
+```php
+$row->addCell('G', $value);
+```
+
 
 ---
 
@@ -67,12 +81,22 @@ public function addCell(string $colLetter, $cell): RowTemplate
 public function appendCell(?string $colSource = null, 
                            ?int $number = null): RowTemplate
 ```
-
+_Append a source cell to the end of the row_
 
 ### Parameters
 
 * `string|null $colSource`
 * `int|null $number`
+
+---
+
+### Examples
+
+```php
+$row->appendCell('E'); // Append cell like E to the end of the row
+$row->appendCell('E', 2); // Append two cells like E to the end of the row
+```
+
 
 ---
 
@@ -87,7 +111,55 @@ _Source row attribute_
 
 ### Parameters
 
-* `$name`
+* `string $name`
+
+---
+
+## cells()
+
+---
+
+```php
+public function cells(): array
+```
+_Get all cells of the row_
+
+### Parameters
+
+_None_
+
+---
+
+## cloneCell()
+
+---
+
+```php
+public function cloneCell(string $colSource, $colTarget, 
+                          ?bool $checkMerge = false): RowTemplate
+```
+_Clone a cell_
+
+### Parameters
+
+* `string $colSource`
+* `string|string[] $colTarget`
+* `bool|null $checkMerge`
+
+---
+
+## current()
+
+---
+
+```php
+public function current(): mixed
+```
+_Return the current element_
+
+### Parameters
+
+_None_
 
 ---
 
@@ -106,29 +178,14 @@ _None_
 
 ---
 
-## setAttributes()
+## getSheetTemplate()
 
 ---
 
 ```php
-public function setAttributes(array $attributes): RowTemplate
+public function getSheetTemplate(): ?SheetTemplate
 ```
-
-
-### Parameters
-
-* `array $attributes`
-
----
-
-## cells()
-
----
-
-```php
-public function cells(): array
-```
-
+_Get sheet template_
 
 ### Parameters
 
@@ -136,32 +193,29 @@ _None_
 
 ---
 
-## cloneCell()
+## getValue()
 
 ---
 
 ```php
-public function cloneCell(string $colSource, $colTarget, 
-                          ?bool $checkMerge = false): RowTemplate
+public function getValue(string $colLetter): mixed|null
 ```
-
+_Returns value of cell_
 
 ### Parameters
 
-* `string $colSource`
-* `string|string[] $colTarget`
-* `bool|null $checkMerge`
+* `string $colLetter`
 
 ---
 
-## current()
+## getValues()
 
 ---
 
 ```php
-public function current()
+public function getValues(): array
 ```
-
+_Get values of all cells of the row_
 
 ### Parameters
 
@@ -174,9 +228,9 @@ _None_
 ---
 
 ```php
-public function key()
+public function key(): mixed
 ```
-
+_Return the key of the current element_
 
 ### Parameters
 
@@ -189,9 +243,9 @@ _None_
 ---
 
 ```php
-public function next()
+public function next(): void
 ```
-
+_Move forward to next element_
 
 ### Parameters
 
@@ -206,11 +260,20 @@ _None_
 ```php
 public function removeCell(string $col): RowTemplate
 ```
-
+_Mark a cell as removed_
 
 ### Parameters
 
-* `$col`
+* `string $col`
+
+---
+
+### Examples
+
+```php
+$row->removeCell('G');
+```
+
 
 ---
 
@@ -221,11 +284,20 @@ public function removeCell(string $col): RowTemplate
 ```php
 public function removeCells(array $cols): RowTemplate
 ```
-
+_Mark multiple cells as removed_
 
 ### Parameters
 
 * `string[] $cols`
+
+---
+
+### Examples
+
+```php
+$row->removeCells(['G', 'H']);
+```
+
 
 ---
 
@@ -234,9 +306,9 @@ public function removeCells(array $cols): RowTemplate
 ---
 
 ```php
-public function rewind()
+public function rewind(): void
 ```
-
+_Rewind the Iterator to the first element_
 
 ### Parameters
 
@@ -274,33 +346,64 @@ _None_
 
 ---
 
-## valid()
+## setAttributes()
 
 ---
 
 ```php
-public function valid(): bool
+public function setAttributes(array $attributes): RowTemplate
 ```
-
+_Set row attributes_
 
 ### Parameters
 
-_None_
+* `array $attributes`
 
 ---
 
-## getValue()
+## setCellStyle()
 
 ---
 
 ```php
-public function getValue(string $colLetter): mixed|null
+public function setCellStyle(string $colLetter, $style): RowTemplate
 ```
-
+_Set cell style_
 
 ### Parameters
 
 * `string $colLetter`
+* `mixed $style`
+
+---
+
+## setRowStyle()
+
+---
+
+```php
+public function setRowStyle($style): RowTemplate
+```
+_Set row style_
+
+### Parameters
+
+* `mixed $style`
+
+---
+
+## setSheetTemplate()
+
+---
+
+```php
+public function setSheetTemplate(avadim\FastExcelTemplator\SheetTemplate $sheetTemplate): RowTemplate
+```
+_Set sheet template_
+
+### Parameters
+
+* `SheetTemplate $sheetTemplate`
 
 ---
 
@@ -311,7 +414,7 @@ public function getValue(string $colLetter): mixed|null
 ```php
 public function setValue(string $colLetter, $value): RowTemplate
 ```
-
+_Set cell value_
 
 ### Parameters
 
@@ -320,18 +423,12 @@ public function setValue(string $colLetter, $value): RowTemplate
 
 ---
 
-## getValues()
-
----
+### Examples
 
 ```php
-public function getValues(): array
+$row->setValue('G', '=SUM(A1:A10)');
 ```
 
-
-### Parameters
-
-_None_
 
 ---
 
@@ -342,11 +439,35 @@ _None_
 ```php
 public function setValues(array $values): RowTemplate
 ```
-
+_Set multiple cell values_
 
 ### Parameters
 
 * `array $values`
+
+---
+
+### Examples
+
+```php
+$row->setValues(['G' => '=SUM(A1:A10)', 'H' => 'value']);
+```
+
+
+---
+
+## valid()
+
+---
+
+```php
+public function valid(): bool
+```
+_Checks if current position is valid_
+
+### Parameters
+
+_None_
 
 ---
 
@@ -357,11 +478,20 @@ public function setValues(array $values): RowTemplate
 ```php
 public function withValue($value): RowTemplate
 ```
-
+_Assign a value to the last added cell_
 
 ### Parameters
 
-* `$value`
+* `mixed $value`
+
+---
+
+### Examples
+
+```php
+$row->appendCell('E')->withValue('value');
+```
+
 
 ---
 
@@ -372,11 +502,20 @@ public function withValue($value): RowTemplate
 ```php
 public function withValues(array $values): RowTemplate
 ```
-
+_Assign values to the last added cells_
 
 ### Parameters
 
 * `array $values`
+
+---
+
+### Examples
+
+```php
+$row->appendCell('E', 2)->withValues(['value1', 'value2']);
+```
+
 
 ---
 

@@ -119,11 +119,11 @@ use avadim\FastExcelTemplator\Excel;
 $excel = Excel::template($tpl, $out);
 $sheet = $excel->sheet();
 
-$sheet->rows(null, function ($sourceRowNum, $targetRowNum, $rowData) {
+$sheet->rows(function ($sourceRowNum, $targetRowNum, $rowData) {
     // $rowData is an instance of the RowTemplate
 
     // skip the first row
-    if ($rowNum === 1) {
+    if ($sourceRowNum === 1) {
         return null;
     }
     // $rowData
@@ -143,14 +143,14 @@ The styles and value from the source cell will be copied to the new cell.
 If you do not explicitly specify a source cell, the last cell in the row will be used as the source.
 
 ```php
-$sheet->rows(null, function ($sourceRowNum, $targetRowNum, $rowData) {
+$sheet->rows(function ($sourceRowNum, $targetRowNum, $rowData) {
     // Clone the last cell of the row and add them to the end of the row and assign it the value 123
     $rowData->appendCell()->withValue(123);
 
     return $rowData;
 });
 
-$sheet->rows(null, function ($sourceRowNum, $targetRowNum, $rowData) {
+$sheet->rows(function ($sourceRowNum, $targetRowNum, $rowData) {
     // Clone the cell 'B' and add them to the end
     $rowData->appendCell('B');
 
@@ -164,7 +164,7 @@ $sheet->rows(null, function ($sourceRowNum, $targetRowNum, $rowData) {
 Also, you can clone any cell (with styles and value) to other cell
 
 ```php
-$sheet->rows(null, function ($sourceRowNum, $targetRowNum, $rowData) {
+$sheet->rows(function ($sourceRowNum, $targetRowNum, $rowData) {
     // Clone the cell 'A' to the cell 'E' and assign it the SUM()
     $rowData->cloneCell('A', 'E')
         ->withValues(['=SUM(A' . $targetRowNum . ':E' . $targetRowNum . ')']);
@@ -176,7 +176,7 @@ $sheet->rows(null, function ($sourceRowNum, $targetRowNum, $rowData) {
 If you need to remove cells, use the ```removeCells()```.
 
 ```php
-$sheet->rows(null, function ($sourceRowNum, $targetRowNum, $rowData) {
+$sheet->rows(function ($sourceRowNum, $targetRowNum, $rowData) {
     // Clone the cell 'A' to the cell 'E' and assign it the SUM()
     $rowData->removeCells(['B', 'D']);
 
@@ -187,7 +187,7 @@ $sheet->rows(null, function ($sourceRowNum, $targetRowNum, $rowData) {
 ## List of Functions
 
 * [Class Excel](docs/91-api-class-excel.md)
-* [Class Sheet](docs/92-api-class-sheet.md)
+* [Class Sheet](docs/92-api-class-sheet-template.md)
 * [Class RowTemplate](docs/93-api-class-row-template.md)
 
 ## Do you like FastExcelTemplator?

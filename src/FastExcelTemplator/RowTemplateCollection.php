@@ -13,6 +13,8 @@ class RowTemplateCollection implements \Iterator
 
 
     /**
+     * RowTemplateCollection constructor
+     *
      * @param array|null $rowData
      */
     public function __construct(?array $rowData = [])
@@ -24,13 +26,20 @@ class RowTemplateCollection implements \Iterator
         }
     }
 
+    /**
+     * Set sheet template
+     *
+     * @param SheetTemplate $sheet
+     */
     public function setSheet($sheet)
     {
         $this->sheet = $sheet;
     }
 
     /**
-     * @param $row
+     * Add row template to collection
+     *
+     * @param RowTemplate $row
      * @param int|null $rowNum
      *
      * @return void
@@ -46,6 +55,8 @@ class RowTemplateCollection implements \Iterator
     }
 
     /**
+     * Delete row template from collection
+     *
      * @param int $rowNum
      *
      * @return void
@@ -58,8 +69,10 @@ class RowTemplateCollection implements \Iterator
     }
 
     /**
+     * Clone cell in all row templates of the collection
+     *
      * @param string $colSource
-     * @param $colTarget
+     * @param string|array $colTarget
      * @param bool|null $checkMerge
      *
      * @return $this
@@ -78,18 +91,33 @@ class RowTemplateCollection implements \Iterator
         return $this;
     }
 
+    /**
+     * Return the current element
+     *
+     * @return mixed
+     */
     #[\ReturnTypeWillChange]
     public function current()
     {
         return current($this->rowTemplates);
     }
 
+    /**
+     * Return the key of the current element
+     *
+     * @return mixed
+     */
     #[\ReturnTypeWillChange]
     public function key()
     {
         return key($this->rowTemplates);
     }
 
+    /**
+     * Move forward to next element
+     *
+     * @return mixed
+     */
     #[\ReturnTypeWillChange]
     public function next()
     {
@@ -102,6 +130,11 @@ class RowTemplateCollection implements \Iterator
         return $result;
     }
 
+    /**
+     * Rewind the Iterator to the first element
+     *
+     * @return mixed
+     */
     #[\ReturnTypeWillChange]
     public function rewind()
     {
@@ -110,6 +143,11 @@ class RowTemplateCollection implements \Iterator
         return reset($this->rowTemplates);
     }
 
+    /**
+     * Checks if current position is valid
+     *
+     * @return bool
+     */
     public function valid(): bool
     {
         $result = current($this->rowTemplates);

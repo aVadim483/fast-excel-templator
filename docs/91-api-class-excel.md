@@ -2,46 +2,63 @@
 
 ---
 
-* [__construct()](#__construct) -- Excel constructor
-* [colLetter()](#colletter) -- Convert column number to letter
-* [colNum()](#colnum) -- Converts an alphabetic column index to a numeric
-* [createReader()](#createreader)
-* [createSheet()](#createsheet)
-* [setTempDir()](#settempdir) -- Set dir for temporary files
+* [__construct()](#__construct) – Excel constructor
+* [colLetter()](#colletter) – Convert column number to letter
+* [colNum()](#colnum) – Converts an alphabetic column index to a numeric
+* [createReader()](#createreader) – Create internal reader
+* [createSheet()](#createsheet) – Create sheet template instance
+* [open()](#open) – Open XLSX file
+* [setTempDir()](#settempdir) – Set dir for temporary files
 * [template()](#template)
-* [getCompleteStyleByIdx()](#getcompletestylebyidx)
-* [countImages()](#countimages) -- Returns the total count of images in the workbook
-* [getDateFormat()](#getdateformat)
-* [setDateFormat()](#setdateformat)
-* [getDateFormatPattern()](#getdateformatpattern)
-* [dateFormatter()](#dateformatter) -- Sets custom date formatter
-* [getDateFormatter()](#getdateformatter)
-* [getDefinedNames()](#getdefinednames) -- Returns defined names of workbook
-* [download()](#download) -- Download generated file to client (send to browser)
-* [fill()](#fill) -- Set replacements of entire cell values for the sheet
-* [getFirstSheet()](#getfirstsheet) -- Returns the first sheet as default
-* [formatDate()](#formatdate)
-* [getFormatPattern()](#getformatpattern)
-* [hasDrawings()](#hasdrawings) -- Returns TRUE if the workbook contains an any draw objects (not images only)
-* [hasExtraImages()](#hasextraimages)
-* [hasImages()](#hasimages) -- Returns TRUE if any sheet contains an image object
-* [getImageList()](#getimagelist) -- Returns the list of images from the workbook
-* [mediaImageFiles()](#mediaimagefiles)
-* [metadataImage()](#metadataimage)
-* [output()](#output) -- Alias of download()
-* [replace()](#replace) -- Set replacements of any occurring substrings
-* [save()](#save) -- Save generated XLSX-file
-* [selectFirstSheet()](#selectfirstsheet) -- Selects the first sheet as default
-* [selectSheet()](#selectsheet) -- Selects default sheet by name
-* [selectSheetById()](#selectsheetbyid) -- Selects default sheet by ID
-* [sharedString()](#sharedstring) -- Returns string array by index
+* [validate()](#validate) – Validate XLSX file
+* [countExtraImages()](#countextraimages) – Count "extra" images (images that are in the media folder but not in the drawings)
+* [countImages()](#countimages) – Returns the total count of images in the workbook
+* [dateFormatter()](#dateformatter) – Set custom date formatter
+* [download()](#download) – Download generated file to client (send to browser)
+* [fill()](#fill) – Set replacements of entire cell values for the sheet
+* [formatDate()](#formatdate) – Format date value
+* [from()](#from) – Set top left of read area
+* [getCompleteStyleByIdx()](#getcompletestylebyidx) – Get complete style by style index
+* [getDateFormat()](#getdateformat) – Get current date format
+* [getDateFormatPattern()](#getdateformatpattern) – Get PHP date format pattern by style index
+* [getDateFormatter()](#getdateformatter) – Get date formatter
+* [getDefinedNames()](#getdefinednames) – Get defined names of workbook
+* [getFirstSheet()](#getfirstsheet) – Returns the first sheet as default
+* [getFormatPattern()](#getformatpattern) – Get format pattern by style index
+* [getImageList()](#getimagelist) – Get the list of images from the workbook
+* [getSheet()](#getsheet) – Returns a sheet by name
+* [getSheetById()](#getsheetbyid) – Returns a sheet by ID
+* [getSheetNames()](#getsheetnames) – Get names array of all sheets
+* [hasDrawings()](#hasdrawings) – Returns TRUE if the workbook contains an any draw objects (not images only)
+* [hasExtraImages()](#hasextraimages) – Returns TRUE if there are any "extra" images
+* [hasImages()](#hasimages) – Returns TRUE if any sheet contains an image object
+* [innerFileList()](#innerfilelist) – Get list of inner files in XLSX
+* [mediaImageFiles()](#mediaimagefiles) – Get list of media image files in the workbook
+* [metadataImage()](#metadataimage) – Get image file name from metadata by index
+* [output()](#output) – Alias of download()
+* [outputFile()](#outputfile)
+* [readCallback()](#readcallback) – Reads cell values and passes them to a callback function
+* [readCells()](#readcells) – Returns the values of all cells as array
+* [readCellStyles()](#readcellstyles) – Returns the styles of all cells as array
+* [readCellsWithStyles()](#readcellswithstyles) – Returns the values and styles of all cells as array
+* [readColumns()](#readcolumns) – Returns cell values as a two-dimensional array from default sheet [col][row]
+* [readColumnsWithStyles()](#readcolumnswithstyles) – Returns cell values and styles as a two-dimensional array from default sheet [col][row]
+* [readRows()](#readrows) – Returns cell values as a two-dimensional array from default sheet [row][col]
+* [readRowsWithStyles()](#readrowswithstyles) – Returns cell values and styles as a two-dimensional array from default sheet [row][col]
+* [readStyles()](#readstyles) – Read all workbook styles
+* [replace()](#replace) – Set replacements of any occurring substrings
+* [save()](#save) – Save generated XLSX-file
+* [selectFirstSheet()](#selectfirstsheet) – Selects the first sheet as default
+* [selectSheet()](#selectsheet) – Selects default sheet by name
+* [selectSheetById()](#selectsheetbyid) – Selects default sheet by ID
+* [setDateFormat()](#setdateformat) – Set date format for reading
+* [setReadArea()](#setreadarea) – Set top left and right bottom of read area
+* [sharedString()](#sharedstring) – Get string by index
 * [sheet()](#sheet)
-* [getSheet()](#getsheet) -- Returns a sheet by name
-* [getSheetById()](#getsheetbyid) -- Returns a sheet by ID
-* [getSheetNames()](#getsheetnames) -- Returns names array of all sheets
-* [sheets()](#sheets) -- Array of all sheets
-* [styleByIdx()](#stylebyidx) -- Returns style array by style Idx
-* [timestamp()](#timestamp) -- Convert date to timestamp
+* [sheets()](#sheets) – Array of all sheets
+* [styleByIdx()](#stylebyidx) – Get style array by style index
+* [templateFile()](#templatefile)
+* [timestamp()](#timestamp) – Convert date to timestamp
 
 ---
 
@@ -74,7 +91,7 @@ _Convert column number to letter_
 
 ### Parameters
 
-* `int $colNumber` -- ONE based
+* `int $colNumber` – ONE based
 
 ---
 
@@ -101,12 +118,12 @@ _Converts an alphabetic column index to a numeric_
 public static function createReader(string $file, 
                                     ?array $parserProperties = []): Reader
 ```
-
+_Create internal reader_
 
 ### Parameters
 
-* `$file`
-* `$parserProperties`
+* `string $file`
+* `array|null $parserProperties`
 
 ---
 
@@ -116,17 +133,32 @@ public static function createReader(string $file,
 
 ```php
 public static function createSheet(string $sheetName, $sheetId, $file, $path, 
-                                   $excel): Sheet
+                                   $excel): SheetTemplate
 ```
-
+_Create sheet template instance_
 
 ### Parameters
 
 * `string $sheetName`
-* `$sheetId`
-* `$file`
-* `$path`
-* `$excel`
+* `int|string $sheetId`
+* `string $file`
+* `string $path`
+* `Excel $excel`
+
+---
+
+## open()
+
+---
+
+```php
+public static function open(string $file): avadim\FastExcelReader\Excel
+```
+_Open XLSX file_
+
+### Parameters
+
+* `string $file`
 
 ---
 
@@ -164,20 +196,34 @@ public static function template(string $templateFile,
 
 ---
 
-## getCompleteStyleByIdx()
+## validate()
 
 ---
 
 ```php
-public function getCompleteStyleByIdx(int $styleIdx, 
-                                      ?bool $flat = false): array
+public static function validate(string $file, ?array &$errors = []): bool
 ```
-
+_Validate XLSX file_
 
 ### Parameters
 
-* `int $styleIdx`
-* `bool|null $flat`
+* `string $file`
+* `array|null $errors`
+
+---
+
+## countExtraImages()
+
+---
+
+```php
+public function countExtraImages(): int
+```
+_Count "extra" images (images that are in the media folder but not in the drawings)_
+
+### Parameters
+
+_None_
 
 ---
 
@@ -196,51 +242,6 @@ _None_
 
 ---
 
-## getDateFormat()
-
----
-
-```php
-public function getDateFormat(): ?string
-```
-
-
-### Parameters
-
-_None_
-
----
-
-## setDateFormat()
-
----
-
-```php
-public function setDateFormat(string $dateFormat): avadim\FastExcelReader\Excel
-```
-
-
-### Parameters
-
-* `string $dateFormat`
-
----
-
-## getDateFormatPattern()
-
----
-
-```php
-public function getDateFormatPattern(int $styleIdx): ?string
-```
-
-
-### Parameters
-
-* `int $styleIdx`
-
----
-
 ## dateFormatter()
 
 ---
@@ -248,41 +249,11 @@ public function getDateFormatPattern(int $styleIdx): ?string
 ```php
 public function dateFormatter($formatter): avadim\FastExcelReader\Excel
 ```
-_Sets custom date formatter_
+_Set custom date formatter_
 
 ### Parameters
 
-* `\Closure|callable|string|bool $formatter`
-
----
-
-## getDateFormatter()
-
----
-
-```php
-public function getDateFormatter(): callable|\Closure|bool|null
-```
-
-
-### Parameters
-
-_None_
-
----
-
-## getDefinedNames()
-
----
-
-```php
-public function getDefinedNames(): array
-```
-_Returns defined names of workbook_
-
-### Parameters
-
-_None_
+* `\Closure|callable|string|bool|null $formatter`
 
 ---
 
@@ -316,6 +287,117 @@ _Set replacements of entire cell values for the sheet_
 
 ---
 
+## formatDate()
+
+---
+
+```php
+public function formatDate($value, $format, $styleIdx): false|mixed|string
+```
+_Format date value_
+
+### Parameters
+
+* `mixed $value`
+* `string|null $format`
+* `int|null $styleIdx`
+
+---
+
+## from()
+
+---
+
+```php
+public function from(string $topLeftCell, 
+                     ?bool $firstRowKeys = false): avadim\FastExcelReader\Sheet
+```
+_Set top left of read area_
+
+### Parameters
+
+* `string $topLeftCell`
+* `bool|null $firstRowKeys`
+
+---
+
+## getCompleteStyleByIdx()
+
+---
+
+```php
+public function getCompleteStyleByIdx(int $styleIdx, 
+                                      ?bool $flat = false): array
+```
+_Get complete style by style index_
+
+### Parameters
+
+* `int $styleIdx`
+* `bool|null $flat`
+
+---
+
+## getDateFormat()
+
+---
+
+```php
+public function getDateFormat(): ?string
+```
+_Get current date format_
+
+### Parameters
+
+_None_
+
+---
+
+## getDateFormatPattern()
+
+---
+
+```php
+public function getDateFormatPattern(int $styleIdx): ?string
+```
+_Get PHP date format pattern by style index_
+
+### Parameters
+
+* `int $styleIdx`
+
+---
+
+## getDateFormatter()
+
+---
+
+```php
+public function getDateFormatter(): callable|\Closure|bool|null
+```
+_Get date formatter_
+
+### Parameters
+
+_None_
+
+---
+
+## getDefinedNames()
+
+---
+
+```php
+public function getDefinedNames(): array
+```
+_Get defined names of workbook_
+
+### Parameters
+
+_None_
+
+---
+
 ## getFirstSheet()
 
 ---
@@ -333,23 +415,6 @@ _Returns the first sheet as default_
 
 ---
 
-## formatDate()
-
----
-
-```php
-public function formatDate($value, $format, $styleIdx): false|mixed|string
-```
-
-
-### Parameters
-
-* `$value`
-* `$format`
-* `$styleIdx`
-
----
-
 ## getFormatPattern()
 
 ---
@@ -357,11 +422,77 @@ public function formatDate($value, $format, $styleIdx): false|mixed|string
 ```php
 public function getFormatPattern(int $styleIdx): mixed|string
 ```
-
+_Get format pattern by style index_
 
 ### Parameters
 
 * `int $styleIdx`
+
+---
+
+## getImageList()
+
+---
+
+```php
+public function getImageList(): array
+```
+_Get the list of images from the workbook_
+
+### Parameters
+
+_None_
+
+---
+
+## getSheet()
+
+---
+
+```php
+public function getSheet(?string $name = null, ?string $areaRange = null, 
+                         ?bool $firstRowKeys = false): SheetTemplate
+```
+_Returns a sheet by name_
+
+### Parameters
+
+* `string|null $name`
+* `string|null $areaRange`
+* `bool|null $firstRowKeys`
+
+---
+
+## getSheetById()
+
+---
+
+```php
+public function getSheetById(int $sheetId, ?string $areaRange = null, 
+                             ?bool $firstRowKeys = false): avadim\FastExcelReader\Sheet
+```
+_Returns a sheet by ID_
+
+### Parameters
+
+* `int $sheetId`
+* `string|null $areaRange`
+* `bool|null $firstRowKeys`
+
+---
+
+## getSheetNames()
+
+---
+
+```php
+public function getSheetNames(): array
+```
+_Get names array of all sheets_
+
+### Parameters
+
+_None_
 
 ---
 
@@ -387,7 +518,7 @@ _None_
 ```php
 public function hasExtraImages(): bool
 ```
-
+_Returns TRUE if there are any "extra" images_
 
 ### Parameters
 
@@ -410,14 +541,14 @@ _None_
 
 ---
 
-## getImageList()
+## innerFileList()
 
 ---
 
 ```php
-public function getImageList(): array
+public function innerFileList(): array
 ```
-_Returns the list of images from the workbook_
+_Get list of inner files in XLSX_
 
 ### Parameters
 
@@ -432,7 +563,7 @@ _None_
 ```php
 public function mediaImageFiles(): array
 ```
-
+_Get list of media image files in the workbook_
 
 ### Parameters
 
@@ -447,7 +578,7 @@ _None_
 ```php
 public function metadataImage(int $vmIndex): ?string
 ```
-
+_Get image file name from metadata by index_
 
 ### Parameters
 
@@ -467,6 +598,167 @@ _Alias of download()_
 ### Parameters
 
 * `string|null $name`
+
+---
+
+## outputFile()
+
+---
+
+```php
+public function outputFile(): string
+```
+
+
+### Parameters
+
+_None_
+
+---
+
+## readCallback()
+
+---
+
+```php
+public function readCallback(callable $callback, ?int $resultMode = null, 
+                             ?bool $styleIdxInclude = null)
+```
+_Reads cell values and passes them to a callback function_
+
+### Parameters
+
+* `callback $callback`
+* `int|null $resultMode`
+* `bool|null $styleIdxInclude`
+
+---
+
+## readCells()
+
+---
+
+```php
+public function readCells(): array
+```
+_Returns the values of all cells as array_
+
+### Parameters
+
+_None_
+
+---
+
+## readCellStyles()
+
+---
+
+```php
+public function readCellStyles(?bool $flat = false): array
+```
+_Returns the styles of all cells as array_
+
+### Parameters
+
+* `bool|null $flat`
+
+---
+
+## readCellsWithStyles()
+
+---
+
+```php
+public function readCellsWithStyles(): array
+```
+_Returns the values and styles of all cells as array_
+
+### Parameters
+
+_None_
+
+---
+
+## readColumns()
+
+---
+
+```php
+public function readColumns($columnKeys, ?int $resultMode = null): array
+```
+_Returns cell values as a two-dimensional array from default sheet \[col]\[row]_
+
+### Parameters
+
+* `array|bool|int|null $columnKeys`
+* `int|null $resultMode`
+
+---
+
+## readColumnsWithStyles()
+
+---
+
+```php
+public function readColumnsWithStyles($columnKeys, 
+                                      ?int $resultMode = null): array
+```
+_Returns cell values and styles as a two-dimensional array from default sheet \[col]\[row]_
+
+### Parameters
+
+* `array|bool|int|null $columnKeys`
+* `int|null $resultMode`
+
+---
+
+## readRows()
+
+---
+
+```php
+public function readRows($columnKeys, ?int $resultMode = null, 
+                         ?bool $styleIdxInclude = null): array
+```
+_Returns cell values as a two-dimensional array from default sheet \[row]\[col]readRows()readRows(true)readRows(false, Excel::KEYS_ZERO_BASED)readRows(Excel::KEYS_ZERO_BASED | Excel::KEYS_RELATIVE)_
+
+### Parameters
+
+* `array|bool|int|null $columnKeys`
+* `int|null $resultMode`
+* `bool|null $styleIdxInclude`
+
+---
+
+## readRowsWithStyles()
+
+---
+
+```php
+public function readRowsWithStyles($columnKeys, 
+                                   ?int $resultMode = null): array
+```
+_Returns cell values and styles as a two-dimensional array from default sheet \[row]\[col]_
+
+### Parameters
+
+* `array|bool|int|null $columnKeys`
+* `int|null $resultMode`
+
+---
+
+## readStyles()
+
+---
+
+```php
+public function readStyles(): array
+```
+_Read all workbook styles_
+
+### Parameters
+
+_None_
 
 ---
 
@@ -554,6 +846,38 @@ _Selects default sheet by ID_
 
 ---
 
+## setDateFormat()
+
+---
+
+```php
+public function setDateFormat(string $dateFormat): avadim\FastExcelReader\Excel
+```
+_Set date format for reading_
+
+### Parameters
+
+* `string $dateFormat`
+
+---
+
+## setReadArea()
+
+---
+
+```php
+public function setReadArea(string $areaRange, 
+                            ?bool $firstRowKeys = false): avadim\FastExcelReader\Sheet
+```
+_Set top left and right bottom of read area_
+
+### Parameters
+
+* `string $areaRange`
+* `bool|null $firstRowKeys`
+
+---
+
 ## sharedString()
 
 ---
@@ -561,11 +885,11 @@ _Selects default sheet by ID_
 ```php
 public function sharedString($stringId): ?string
 ```
-_Returns string array by index_
+_Get string by index_
 
 ### Parameters
 
-* `$stringId`
+* `int $stringId`
 
 ---
 
@@ -574,64 +898,13 @@ _Returns string array by index_
 ---
 
 ```php
-public function sheet(?string $name = null): ?Sheet
+public function sheet(?string $name = null): ?SheetTemplate
 ```
 
 
 ### Parameters
 
 * `string|null $name`
-
----
-
-## getSheet()
-
----
-
-```php
-public function getSheet(?string $name = null, ?string $areaRange = null, 
-                         ?bool $firstRowKeys = false): Sheet
-```
-_Returns a sheet by name_
-
-### Parameters
-
-* `string|null $name`
-* `string|null $areaRange`
-* `bool|null $firstRowKeys`
-
----
-
-## getSheetById()
-
----
-
-```php
-public function getSheetById(int $sheetId, ?string $areaRange = null, 
-                             ?bool $firstRowKeys = false): avadim\FastExcelReader\Sheet
-```
-_Returns a sheet by ID_
-
-### Parameters
-
-* `int $sheetId`
-* `string|null $areaRange`
-* `bool|null $firstRowKeys`
-
----
-
-## getSheetNames()
-
----
-
-```php
-public function getSheetNames(): array
-```
-_Returns names array of all sheets_
-
-### Parameters
-
-_None_
 
 ---
 
@@ -657,11 +930,26 @@ _None_
 ```php
 public function styleByIdx($styleIdx): array
 ```
-_Returns style array by style Idx_
+_Get style array by style index_
 
 ### Parameters
 
-* `$styleIdx`
+* `int $styleIdx`
+
+---
+
+## templateFile()
+
+---
+
+```php
+public function templateFile(): string
+```
+
+
+### Parameters
+
+_None_
 
 ---
 

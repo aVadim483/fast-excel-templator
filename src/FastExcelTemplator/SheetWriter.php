@@ -13,11 +13,21 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
     protected array $replace = [];
 
 
+    /**
+     * Set sheet views attributes
+     *
+     * @param array $attributes
+     */
     public function _setSheetViewsAttributes(array $attributes)
     {
         $this->sheetViews = [$attributes];
     }
 
+    /**
+     * Set sheet format properties attributes
+     *
+     * @param array $attributes
+     */
     public function _setSheetFormatPrAttributes(array $attributes)
     {
         foreach ($attributes as $key => $val) {
@@ -27,6 +37,11 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
         }
     }
 
+    /**
+     * Get sheet views
+     *
+     * @return array
+     */
     public function getSheetViews(): array
     {
         //return $this->sheetViews;
@@ -37,9 +52,11 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
     }
 
     /**
-     * @param $rowIdx
-     * @param $colIdx
-     * @param $cell
+     * Set node
+     *
+     * @param int $rowIdx
+     * @param int $colIdx
+     * @param mixed $cell
      *
      * @return void
      */
@@ -49,6 +66,8 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
     }
 
     /**
+     * Set fill values
+     *
      * @param array $fillData
      *
      * @return void
@@ -59,6 +78,8 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
     }
 
     /**
+     * Set replace values
+     *
      * @param array $replaceData
      *
      * @return void
@@ -72,6 +93,8 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
     }
 
     /**
+     * Set style index for cell
+     *
      * @param string $cellAddress
      * @param int $styleIdx
      * @param string|null $numberFormatType
@@ -92,11 +115,13 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
     }
 
     /**
-     * @param string|array|null $cellAddress
-     * * @param mixed $value
-     * * @param array|Style|null $styles
-     * * @param int|null $mergeFlag
-     * * @param bool|null $changeCurrent
+     * Set cell data internal handler
+     *
+     * @param string|array $cellAddress
+     * @param mixed $value
+     * @param mixed|null $styles
+     * @param int|null $mergeFlag
+     * @param bool|null $changeCurrent
      *
      * @return array
      */
@@ -127,9 +152,11 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
     }
 
     /**
-     * @param $cellAddress
-     * @param $value
-     * @param $styles
+     * Write to cell by index
+     *
+     * @param array $cellAddress
+     * @param mixed $value
+     * @param mixed|null $styles
      *
      * @return void
      */
@@ -150,8 +177,10 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
     }
 
     /**
-     * @param $oldRange
-     * @param $newRange
+     * Update merged cells range
+     *
+     * @param string $oldRange
+     * @param string $newRange
      *
      * @return void
      */
@@ -164,6 +193,8 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
     }
 
     /**
+     * Current row number
+     *
      * @return int
      */
     public function currentRowNum(): int
@@ -172,6 +203,8 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
     }
 
     /**
+     * Set row attributes
+     *
      * @param int $rowNum
      * @param array $attributes
      *

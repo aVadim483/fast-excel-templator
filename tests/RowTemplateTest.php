@@ -8,8 +8,8 @@ use PHPUnit\Framework\TestCase;
 
 final class RowTemplateTest extends TestCase
 {
-    const INP_FILE = __DIR__ . '/files/test.xlsx';
-    const OUT_FILE = __DIR__ . '/files/test-out.xlsx';
+    const INP_FILE = __DIR__ . '/test_files/test.xlsx';
+    const OUT_FILE = __DIR__ . '/test_files/test-out.xlsx';
 
 
     protected function template(): Excel

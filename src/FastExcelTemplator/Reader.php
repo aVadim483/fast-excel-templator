@@ -22,11 +22,22 @@ class Reader extends \avadim\FastExcelReader\Reader
     protected string $currentNodeName = '';
 
 
+    /**
+     * Reader constructor
+     *
+     * @param string $file
+     * @param array|null $parserProperties
+     */
     public function __construct($file, ?array $parserProperties = [])
     {
         parent::__construct($file, $parserProperties);
     }
 
+    /**
+     * Read next node
+     *
+     * @return bool
+     */
     public function read(): bool
     {
         $result = parent::read();
@@ -46,6 +57,13 @@ class Reader extends \avadim\FastExcelReader\Reader
         return $result;
     }
 
+    /**
+     * Get attributes of specified node
+     *
+     * @param string $nodeName
+     *
+     * @return array|null
+     */
     public function getNodeAttributes(string $nodeName): ?array
     {
         for ($level = $this->currentLevel; $level >= 0; $level--) {
@@ -58,6 +76,8 @@ class Reader extends \avadim\FastExcelReader\Reader
     }
 
     /**
+     * Get all attributes of current node
+     *
      * @return array
      */
     public function getAllAttributes(): array
@@ -66,6 +86,9 @@ class Reader extends \avadim\FastExcelReader\Reader
         return $this->nodes[$this->currentLevel][$this->currentNodeName]['__attr'] ?? [];
     }
 
+    /**
+     * Validate template file
+     */
     public function validate()
     {
         $this->setParserProperty(self::VALIDATE, true);

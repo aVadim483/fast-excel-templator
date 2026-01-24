@@ -6,12 +6,21 @@ use avadim\FastExcelWriter\Exceptions\ExceptionFile;
 
 class ExcelWriter extends \avadim\FastExcelWriter\Excel
 {
+    /**
+     * Create sheet writer instance
+     *
+     * @param string $sheetName
+     *
+     * @return SheetWriter
+     */
     public static function createSheet(string $sheetName): SheetWriter
     {
         return new SheetWriter($sheetName);
     }
 
     /**
+     * Make new sheet
+     *
      * @param string|null $sheetName
      *
      * @return \avadim\FastExcelWriter\Sheet|SheetWriter
@@ -22,6 +31,8 @@ class ExcelWriter extends \avadim\FastExcelWriter\Excel
     }
 
     /**
+     * Replace sheets in template and save result
+     *
      * @param string $inputFile
      * @param string $outputFile
      * @param bool|null $replaceStyles

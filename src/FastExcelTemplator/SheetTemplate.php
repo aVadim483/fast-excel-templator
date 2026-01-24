@@ -36,11 +36,13 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
 
 
     /**
-     * @param $sheetName
-     * @param $sheetId
-     * @param $file
-     * @param $path
-     * @param $excel
+     * SheetTemplate constructor
+     *
+     * @param string $sheetName
+     * @param int $sheetId
+     * @param string $file
+     * @param string $path
+     * @param Excel $excel
      */
     public function __construct($sheetName, $sheetId, $file, $path, $excel)
     {
@@ -60,6 +62,8 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
+     * Get path in ZIP
+     *
      * @return string
      */
     public function path(): string
@@ -68,6 +72,8 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
+     * Internal reader
+     *
      * @param string|null $file
      *
      * @return Reader
@@ -84,10 +90,20 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
         return $this->xmlReader;
     }
 
+    /**
+     * Internal pre-read handler
+     *
+     * @param \XMLReader $xmlReader
+     */
     public function preRead($xmlReader)
     {
     }
 
+    /**
+     * Internal post-read handler
+     *
+     * @param \XMLReader $xmlReader
+     */
     public function postRead($xmlReader)
     {
         if ($this->postReadDone) {
@@ -242,6 +258,8 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
+     * Get internal row template reader
+     *
      * @param int $rowNumberMin
      * @param int $rowNumberMax
      *
@@ -278,6 +296,8 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
+     * Get row template for specified row number
+     *
      * @param int $rowNumber
      * @param bool|null $savePointerPosition
      *
@@ -289,6 +309,8 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
+     * Get row templates for specified row range
+     *
      * @param int $rowNumberMin
      * @param int $rowNumberMax
      * @param bool|null $savePointerPosition
@@ -353,6 +375,8 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
+     * Insert row with data
+     *
      * @param array|RowTemplateCollection|RowTemplate $row
      * @param array|null $cellData
      *
@@ -402,6 +426,8 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
+     * Replace row with data
+     *
      * @param mixed $row
      * @param array|null $cellData
      */
@@ -414,6 +440,8 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
+     * Clone current row
+     *
      * @param array|null $cellData
      */
     public function cloneRow(?array $cellData = [])
@@ -464,6 +492,11 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
         return $this->lastReadRowNum;
     }
 
+    /**
+     * Last written row number
+     *
+     * @return int
+     */
     public function lastWrittenRowNum(): int
     {
         return $this->sheetWriter->currentRowNum() - 1;
@@ -566,9 +599,9 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
                 }
             }
 
-            $xmlReader = $this->getReader();
+            ///$xmlReader = $this->getReader();
             // read page options and others
-            $this->postRead($xmlReader);
+            ///$this->postRead($xmlReader);
         }
         return $this;
     }

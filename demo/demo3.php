@@ -56,7 +56,7 @@ $lastRowNum = $sheet->lastWrittenRowNum();
 
 $formula = '=SUM(F' . $firstRowNum . ':F' . $lastRowNum . ')';
 
-$sheet->transferRows(null, function ($targetRowNum, $rowTemplate) use ($formula) {
+$sheet->transferRows(null, function ($sourceRowNum, $targetRowNum, $rowTemplate) use ($formula) {
     if ($rowTemplate->rowNumber() === 22) {
         $rowTemplate->setValue('F', $formula);
     }

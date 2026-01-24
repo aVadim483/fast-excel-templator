@@ -15,6 +15,11 @@ class RowTemplate implements \Iterator
     protected array $lastAddedCells = [];
 
 
+    /**
+     * RowTemplate constructor
+     *
+     * @param array|null $cellData
+     */
     public function __construct(?array $cellData = [])
     {
         if ($cellData) {
@@ -22,36 +27,63 @@ class RowTemplate implements \Iterator
         }
     }
 
+    /**
+     * Return the current element
+     *
+     * @return mixed
+     */
     #[\ReturnTypeWillChange]
     public function current()
     {
         return current($this->cells);
     }
 
+    /**
+     * Return the key of the current element
+     *
+     * @return mixed
+     */
     #[\ReturnTypeWillChange]
     public function key()
     {
         return key($this->cells);
     }
 
+    /**
+     * Move forward to next element
+     *
+     * @return void
+     */
     #[\ReturnTypeWillChange]
     public function next()
     {
-        return next($this->cells);
+        next($this->cells);
     }
 
+    /**
+     * Rewind the Iterator to the first element
+     *
+     * @return void
+     */
     #[\ReturnTypeWillChange]
     public function rewind()
     {
-        return reset($this->cells);
+        reset($this->cells);
     }
 
+    /**
+     * Checks if current position is valid
+     *
+     * @return bool
+     */
     public function valid(): bool
     {
         return (bool)current($this->cells);
     }
 
     /**
+     * Set sheet template
+     *
      * @param SheetTemplate $sheetTemplate
      *
      * @return $this
@@ -64,6 +96,8 @@ class RowTemplate implements \Iterator
     }
 
     /**
+     * Get sheet template
+     *
      * @return SheetTemplate|null
      */
     public function getSheetTemplate(): ?SheetTemplate
@@ -72,8 +106,10 @@ class RowTemplate implements \Iterator
     }
 
     /**
-     * @param $colLetter
-     * @param $value
+     * Create cell internal structure
+     *
+     * @param string|int $colLetter
+     * @param mixed $value
      * @param mixed|null $style
      *
      * @return array
@@ -109,9 +145,11 @@ class RowTemplate implements \Iterator
     }
 
     /**
+     * Add a cell to the row
+     *
      * @param string $colLetter
-     * @param $value
-     * @param $style
+     * @param mixed $value
+     * @param mixed|null $style
      *
      * @return $this
      *
@@ -164,6 +202,8 @@ class RowTemplate implements \Iterator
     }
 
     /**
+     * Clone a cell
+     *
      * @param string $colSource
      * @param string|string[] $colTarget
      * @param bool|null $checkMerge
@@ -197,6 +237,8 @@ class RowTemplate implements \Iterator
     }
 
     /**
+     * Mark a cell as removed
+     *
      * @param string $col
      *
      * @return $this
@@ -215,6 +257,8 @@ class RowTemplate implements \Iterator
     }
 
     /**
+     * Mark multiple cells as removed
+     *
      * @param string[] $cols
      *
      * @return $this
@@ -235,6 +279,8 @@ class RowTemplate implements \Iterator
     }
 
     /**
+     * Get all cells of the row
+     *
      * @return array
      */
     public function cells(): array
@@ -243,6 +289,8 @@ class RowTemplate implements \Iterator
     }
 
     /**
+     * Set row attributes
+     *
      * @param array $attributes
      *
      * @return RowTemplate
@@ -267,7 +315,7 @@ class RowTemplate implements \Iterator
     /**
      * Source row attribute
      *
-     * @param $name
+     * @param string $name
      *
      * @return string|null
      */
@@ -328,6 +376,8 @@ class RowTemplate implements \Iterator
     }
 
     /**
+     * Set cell value
+     *
      * @param string $colLetter
      * @param mixed $value
      *
@@ -357,6 +407,8 @@ class RowTemplate implements \Iterator
     }
 
     /**
+     * Set multiple cell values
+     *
      * @param array $values
      *
      * @return $this
@@ -376,7 +428,7 @@ class RowTemplate implements \Iterator
     /**
      * Assign a value to the last added cell
      *
-     * @param $value
+     * @param mixed $value
      *
      * @return $this
      *
@@ -422,8 +474,10 @@ class RowTemplate implements \Iterator
     }
 
     /**
+     * Set cell style
+     *
      * @param string $colLetter
-     * @param $style
+     * @param mixed $style
      *
      * @return $this
      */
@@ -442,7 +496,9 @@ class RowTemplate implements \Iterator
     }
 
     /**
-     * @param $style
+     * Set row style
+     *
+     * @param mixed $style
      *
      * @return $this
      */

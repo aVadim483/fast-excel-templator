@@ -162,11 +162,13 @@ class Excel extends ExcelReader
     }
 
     /**
+     * Create sheet template instance
+     *
      * @param string $sheetName
-     * @param $sheetId
-     * @param $file
-     * @param $path
-     * @param $excel
+     * @param int|string $sheetId
+     * @param string $file
+     * @param string $path
+     * @param Excel $excel
      *
      * @return SheetTemplate
      */
@@ -175,6 +177,14 @@ class Excel extends ExcelReader
         return new SheetTemplate($sheetName, $sheetId, $file, $path, $excel);
     }
 
+    /**
+     * Create internal reader
+     *
+     * @param string $file
+     * @param array|null $parserProperties
+     *
+     * @return Reader
+     */
     public static function createReader(string $file, ?array $parserProperties = []): Reader
     {
         return new Reader($file, $parserProperties);
