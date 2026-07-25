@@ -28,6 +28,7 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     protected ?\Generator $readGenerator = null;
 
     protected array $sortedMergedCells = [];
+    protected bool $mergedCellsInit = false;
 
     protected ?Reader $rowTemplateReader = null;
     protected int $rowTemplateNo = 0;
@@ -39,19 +40,38 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
      * SheetTemplate constructor
      *
      * @param string $sheetName
-     * @param int $sheetId
+     * @param string $sheetId
      * @param string $file
      * @param string $path
      * @param Excel $excel
      */
-    public function __construct($sheetName, $sheetId, $file, $path, $excel)
+    public function __construct(string $sheetName, string $sheetId, string $file, string $path, $excel)
     {
         parent::__construct($sheetName, $sheetId, $file, $path, $excel);
         $this->preReadFunc = [$this, 'preRead'];
         $this->postReadFunc = [$this, 'postRead'];
         // init dimension array
         $this->dimension();
-        $this->topRowOffset = $this->dimension['min_row_num'] - 1;
+        $this->topRowOffset = isset($this->dimension['min_row_num']) ? $this->dimension['min_row_num'] - 1 : 0;
+        // NOTE: merged cells are read lazily (see initSortedMergedCells()) to avoid
+        // a full scan of every sheet at open time, especially for sheets that are never transferred
+    }
+
+    /**
+     * Lazily build the map of merged cells sorted by their top row.
+     *
+     * Reading merged cells requires a full scan of the sheet up to the end of the file
+     * (see Reader::_readBottom()), so it is deferred until the merges are actually needed
+     * during row reading instead of being done eagerly in the constructor.
+     *
+     * @return void
+     */
+    protected function initSortedMergedCells(): void
+    {
+        if ($this->mergedCellsInit) {
+            return;
+        }
+        $this->mergedCellsInit = true;
         foreach ($this->getMergedCells() as $cell => $range) {
             $cellArr = Helper::rangeArray($cell);
             $this->sortedMergedCells[$cellArr['min_row_num']][$cell] = $range;
@@ -158,10 +178,14 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     protected function _cellValue($cell, ?array &$additionalData = [])
     {
         $result = parent::_cellValue($cell, $additionalData);
-        $address = $cell->attributes['r']->value;
-        $colIdx = Helper::colNumber($address) - 1;
-        $rowIdx = Helper::rowNumber($address) - 1;
-        $this->sheetWriter->setNode($rowIdx, $colIdx, $cell);
+        // The source DOM node is only needed later for error cells (see SheetWriter::_writeToCellByIdx()),
+        // so we avoid retaining a DOMElement for every single cell of the sheet
+        if (isset($additionalData['t']) && $additionalData['t'] === 'error') {
+            $address = $cell->attributes['r']->value;
+            $colIdx = Helper::colNumber($address) - 1;
+            $rowIdx = Helper::rowNumber($address) - 1;
+            $this->sheetWriter->setNode($rowIdx, $colIdx, $cell);
+        }
 
         return $result;
     }
@@ -200,11 +224,14 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
-     * Replacement for the entire cell value
+     * Replace the entire cell value: applies only when the whole cell equals the key ('{{X}}', not 'text {{X}}').
      *
-     * @param array $params
+     * @param array $params Map of [placeholder => value]; applied to every cell written to the output
      *
      * @return $this
+     *
+     * @example
+     * $sheet->fill(['{{COMPANY}}' => 'ACME Inc.', '{{NUMBER}}' => 128]);
      */
     public function fill(array $params): SheetTemplate
     {
@@ -214,11 +241,14 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
-     * Replacement for substrings in a cell
+     * Replace a substring inside cell values: the key is matched anywhere in the text ('Date: {{DATE}}' works).
      *
-     * @param array $params
+     * @param array $params Map of [search => replacement]; applied to every cell written to the output
      *
      * @return $this
+     *
+     * @example
+     * $sheet->replace(['{{DATE}}' => date('d.m.Y')]);
      */
     public function replace(array $params): SheetTemplate
     {
@@ -270,17 +300,20 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
         if ($rowNumberMax < $rowNumberMin) {
             throw new \RuntimeException('$rowNumberMax cannot be less then $rowNumberMin');
         }
-        if ($rowNumberMin < $this->dimension['min_row_num']) {
-            throw new \RuntimeException('$rowNumberMin cannot be less then ' . $this->dimension['min_row_num']);
-        }
-        if ($rowNumberMin > $this->dimension['max_row_num']) {
-            throw new \RuntimeException('$rowNumberMin cannot be more then ' . $this->dimension['max_row_num']);
-        }
-        if ($rowNumberMax < $this->dimension['min_row_num']) {
-            throw new \RuntimeException('$rowNumberMax cannot be less then ' . $this->dimension['min_row_num']);
-        }
-        if ($rowNumberMax > $this->dimension['max_row_num']) {
-            throw new \RuntimeException('$rowNumberMax cannot be more then ' . $this->dimension['max_row_num']);
+        // Skip boundary checks when the sheet has no <dimension> tag (min/max row numbers are unknown)
+        if (isset($this->dimension['min_row_num'], $this->dimension['max_row_num'])) {
+            if ($rowNumberMin < $this->dimension['min_row_num']) {
+                throw new \RuntimeException('$rowNumberMin cannot be less then ' . $this->dimension['min_row_num']);
+            }
+            if ($rowNumberMin > $this->dimension['max_row_num']) {
+                throw new \RuntimeException('$rowNumberMin cannot be more then ' . $this->dimension['max_row_num']);
+            }
+            if ($rowNumberMax < $this->dimension['min_row_num']) {
+                throw new \RuntimeException('$rowNumberMax cannot be less then ' . $this->dimension['min_row_num']);
+            }
+            if ($rowNumberMax > $this->dimension['max_row_num']) {
+                throw new \RuntimeException('$rowNumberMax cannot be more then ' . $this->dimension['max_row_num']);
+            }
         }
 
         if (!empty($this->rowTemplateReader) && $this->rowTemplateNo > $rowNumberMin && !isset($this->rowTemplates[$rowNumberMin])) {
@@ -296,12 +329,16 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
-     * Get row template for specified row number
+     * Capture a source row as a reusable template; returns a collection (use it with insertRow()).
      *
-     * @param int $rowNumber
-     * @param bool|null $savePointerPosition
+     * @param int $rowNumber Source row number to capture
+     * @param bool|null $savePointerPosition If false (default), the read cursor is advanced to this row
      *
      * @return RowTemplateCollection
+     *
+     * @example
+     * $tpl = $sheet->getRowTemplate(7);
+     * foreach ($data as $row) { $sheet->insertRow($tpl, ['A' => $row['id']]); }
      */
     public function getRowTemplate(int $rowNumber, ?bool $savePointerPosition = false): RowTemplateCollection
     {
@@ -309,13 +346,16 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
-     * Get row templates for specified row range
+     * Capture a range of source rows as templates; insertRow() cycles through them (e.g. for zebra striping).
      *
-     * @param int $rowNumberMin
-     * @param int $rowNumberMax
-     * @param bool|null $savePointerPosition
+     * @param int $rowNumberMin First source row of the range
+     * @param int $rowNumberMax Last source row of the range
+     * @param bool|null $savePointerPosition If false (default), the read cursor is advanced to $rowNumberMax
      *
      * @return RowTemplateCollection
+     *
+     * @example
+     * $tpls = $sheet->getRowTemplates(7, 8); // two styles, alternated on each insertRow()
      */
     public function getRowTemplates(int $rowNumberMin, int $rowNumberMax, ?bool $savePointerPosition = false): RowTemplateCollection
     {
@@ -375,12 +415,15 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
-     * Insert row with data
+     * Insert a row at the current output position, filling it with data by column letter.
      *
-     * @param array|RowTemplateCollection|RowTemplate $row
-     * @param array|null $cellData
+     * @param array|RowTemplateCollection|RowTemplate $row A template (or collection to cycle through), or a plain [col => value] array for a blank row
+     * @param array|null $cellData Values keyed by column letter, e.g. ['A' => 1, 'B' => 'name']
      *
      * @return SheetTemplate
+     *
+     * @example
+     * $sheet->insertRow($rowTemplate, ['A' => $item['id'], 'B' => $item['name']]);
      */
     public function insertRow($row, ?array $cellData = []): SheetTemplate
     {
@@ -457,6 +500,7 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
      */
     public function readRow(): ?\Generator
     {
+        $this->initSortedMergedCells();
         if (empty($this->readGenerator)) {
             $this->readGenerator = $this->nextRow([], \avadim\FastExcelReader\Excel::RESULT_MODE_ROW, true);
         }
@@ -544,10 +588,10 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
-     * Transfers rows from template to output
+     * Copy source rows to the output up to $maxRowNum; an optional callback can modify, skip or stop each row.
      *
-     * @param int|null $maxRowNum Max row of template
-     * @param $callback
+     * @param int|null $maxRowNum Last source row to transfer; null transfers to the end
+     * @param callable|null $callback function($sourceRowNum, $targetRowNum, RowTemplate $row): return $row to write it, null to skip the row, false to stop
      *
      * @return SheetTemplate
      */
@@ -607,10 +651,10 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
-     * Transfers rows from template to output
+     * Copy the next $countRows source rows (or all remaining if null) to the output, with an optional callback.
      *
-     * @param int|null $countRows Number of rows
-     * @param $callback
+     * @param int|null $countRows Number of rows to transfer; null transfers all remaining rows
+     * @param callable|null $callback function($sourceRowNum, $targetRowNum, RowTemplate $row): return $row to write it, null to skip the row, false to stop
      *
      * @return SheetTemplate
      */
@@ -620,11 +664,18 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
-     * Transfers all rows from template to output
+     * Walk all source rows through a callback and write the result (read-modify-write over the whole sheet).
      *
-     * @param mixed $callback function ($rowNum, $rowData)
+     * @param callable $callback function($sourceRowNum, $targetRowNum, RowTemplate $row): return $row to write it, null to skip the row, false to stop
      *
-     * @return SheetTemplate|false|null Sheet - write to output and continue; null - skip row; false - break
+     * @return SheetTemplate
+     *
+     * @example
+     * $sheet->rows(function ($src, $dst, $row) {
+     *     if ($src === 1) return $row;            // keep header
+     *     $row->setValue('C', $row->getValue('C') * 1.2);
+     *     return $row;
+     * });
      */
     public function rows($callback): SheetTemplate
     {

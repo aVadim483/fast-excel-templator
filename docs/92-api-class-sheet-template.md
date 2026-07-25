@@ -16,7 +16,7 @@
 * [dimensionArray()](#dimensionarray) – Get sheet dimension as an array
 * [extractConditionalFormatting()](#extractconditionalformatting) – Extracts conditional formatting rules from the sheet
 * [extractDataValidations()](#extractdatavalidations) – Extracts data validation rules from the sheet
-* [fill()](#fill) – Replacement for the entire cell value
+* [fill()](#fill) – Replace the entire cell value: applies only when the whole cell equals the key ('{{X}}', not 'text {{X}}').
 * [firstCol()](#firstcol) – Get letter of the first column in the read area
 * [firstRow()](#firstrow) – Get number of the first row in the read area
 * [from()](#from) – Set top left of read area. Alias of setReadArea()
@@ -33,20 +33,20 @@
 * [getImageListByRow()](#getimagelistbyrow) – Get image list by row number
 * [getImageMimeType()](#getimagemimetype) – Get image MIME type
 * [getImageName()](#getimagename) – Get image name
-* [getMergedCells()](#getmergedcells) – Get merged cells. Returns an array
+* [getMergedCells()](#getmergedcells) – Get merged cells. Returns an array [min_cell => range]
 * [getReadRowNum()](#getreadrownum) – Get the number of the last row read
 * [getRowAttributes()](#getrowattributes) – Get row attributes (height, style, etc)
 * [getRowHeight()](#getrowheight) – Get height of the row
 * [getRowStyle()](#getrowstyle) – Get row style
-* [getRowTemplate()](#getrowtemplate) – Get row template for specified row number
-* [getRowTemplates()](#getrowtemplates) – Get row templates for specified row range
+* [getRowTemplate()](#getrowtemplate) – Capture a source row as a reusable template; returns a collection (use it with insertRow()).
+* [getRowTemplates()](#getrowtemplates) – Capture a range of source rows as templates; insertRow() cycles through them (e.g. for zebra striping).
 * [getTabColorConfiguration()](#gettabcolorconfiguration) – Get tab color configuration. Alias of getTabColorConfig()
 * [getTabColorInfo()](#gettabcolorinfo) – Get the tab color info of the sheet
 * [hasDrawings()](#hasdrawings) – Returns true if the sheet has drawings
 * [hasImage()](#hasimage) – Returns TRUE if the cell contains an image
 * [id()](#id) – Get sheet ID
 * [imageEntryFullPath()](#imageentryfullpath) – Get full path to the image in the ZIP archive
-* [insertRow()](#insertrow) – Insert row with data
+* [insertRow()](#insertrow) – Insert a row at the current output position, filling it with data by column letter.
 * [isActive()](#isactive) – Returns true if the sheet is active
 * [isHidden()](#ishidden) – Returns true if the sheet is hidden
 * [isMerged()](#ismerged) – Returns true if the cell is merged
@@ -70,17 +70,17 @@
 * [preRead()](#preread) – Internal pre-read handler
 * [readCallback()](#readcallback) – Reads cell values and passes them to a callback function
 * [readCells()](#readcells) – Returns values and styles of cells as array
-* [readCellsFrom()](#readcellsfrom) – Set read area and returns cell values as a one-dimensional array
+* [readCellsFrom()](#readcellsfrom) – Set read area and returns cell values as a one-dimensional array [address => value]
 * [readCellStyles()](#readcellstyles) – Returns styles of cells as array
-* [readCellsWithStyles()](#readcellswithstyles) – Returns cell values and styles as a one-dimensional array
-* [readCellsWithStylesFrom()](#readcellswithstylesfrom) – Set read area and returns cell values and styles as a one-dimensional array
-* [readColumns()](#readcolumns) – Returns cell values as a two-dimensional array from default sheet
-* [readColumnsFrom()](#readcolumnsfrom) – Set read area and returns cell values as a two-dimensional array from default sheet
-* [readColumnsWithStyles()](#readcolumnswithstyles) – Returns cell values and styles as a two-dimensional array
-* [readColumnsWithStylesFrom()](#readcolumnswithstylesfrom) – Set read area and returns cell values and styles as a two-dimensional array 
+* [readCellsWithStyles()](#readcellswithstyles) – Returns cell values and styles as a one-dimensional array [address => value]:
+* [readCellsWithStylesFrom()](#readcellswithstylesfrom) – Set read area and returns cell values and styles as a one-dimensional array [address => value]
+* [readColumns()](#readcolumns) – Returns cell values as a two-dimensional array from default sheet [col][row]
+* [readColumnsFrom()](#readcolumnsfrom) – Set read area and returns cell values as a two-dimensional array from default sheet [col][row]
+* [readColumnsWithStyles()](#readcolumnswithstyles) – Returns cell values and styles as a two-dimensional array [column][row]
+* [readColumnsWithStylesFrom()](#readcolumnswithstylesfrom) – Set read area and returns cell values and styles as a two-dimensional array [column][row]
 * [readFirstRow()](#readfirstrow) – Returns values of cells of 1st row as array
 * [readFirstRowCells()](#readfirstrowcells) – Returns values and styles of cells of 1st row as array
-* [readFirstRowCellsFrom()](#readfirstrowcellsfrom) – Set read area and returns cell values of 1st row as array 
+* [readFirstRowCellsFrom()](#readfirstrowcellsfrom) – Set read area and returns cell values of 1st row as array [address => value]
 * [readFirstRowFrom()](#readfirstrowfrom) – Set read area and returns values of cells of 1st row as array
 * [readFirstRowWithStyles()](#readfirstrowwithstyles) – Returns values and styles of cells of 1st row as array
 * [readFirstRowWithStylesFrom()](#readfirstrowwithstylesfrom) – Set read area and returns values and styles of cells of 1st row as array
@@ -90,11 +90,11 @@
 * [readRowsFrom()](#readrowsfrom) – Read rows from a given area $areaRange
 * [readRowsWithStyles()](#readrowswithstyles) – Returns values, styles, and other info of cells as array
 * [readRowsWithStylesFrom()](#readrowswithstylesfrom) – Set read area and returns values, styles, and other info of cells as array
-* [replace()](#replace) – Replacement for substrings in a cell
+* [replace()](#replace) – Replace a substring inside cell values: the key is matched anywhere in the text ('Date: {{DATE}}' works).
 * [replaceRow()](#replacerow) – Replace row with data
 * [reset()](#reset) – Reset read generator
 * [rewind()](#rewind) – Rewind read generator, alias of reset()
-* [rows()](#rows) – Transfers all rows from template to output
+* [rows()](#rows) – Walk all source rows through a callback and write the result (read-modify-write over the whole sheet).
 * [saveImage()](#saveimage) – Save image to a file
 * [saveImageTo()](#saveimageto) – Save image to a directory
 * [saveSheet()](#savesheet) – Empty method for compatibility
@@ -105,9 +105,11 @@
 * [setState()](#setstate) – Set sheet state (visible, hidden, veryHidden)
 * [skipRows()](#skiprows) – Skip rows from the template
 * [skipRowsUntil()](#skiprowsuntil) – Skip rows from the template
+* [stat()](#stat) – Returns statistics of the sheet: rows, columns and cell counts
 * [state()](#state) – Get sheet state
-* [transferRows()](#transferrows) – Transfers rows from template to output
-* [transferRowsUntil()](#transferrowsuntil) – Transfers rows from template to output
+* [transferRows()](#transferrows) – Copy the next $countRows source rows (or all remaining if null) to the output, with an optional callback.
+* [transferRowsUntil()](#transferrowsuntil) – Copy source rows to the output up to $maxRowNum; an optional callback can modify, skip or stop each row.
+* [withHeader()](#withheader) – Enables header mode
 * [writeCell()](#writecell) – Write value to the current cell and move a pointer to the next cell in the row
 * [writeRow()](#writerow) – Write values to the current row
 
@@ -118,14 +120,15 @@
 ---
 
 ```php
-public function __construct($sheetName, $sheetId, $file, $path, $excel)
+public function __construct(string $sheetName, string $sheetId, string $file, 
+                            string $path, $excel)
 ```
 _SheetTemplate constructor_
 
 ### Parameters
 
 * `string $sheetName`
-* `int $sheetId`
+* `string $sheetId`
 * `string $file`
 * `string $path`
 * `Excel $excel`
@@ -139,7 +142,7 @@ _SheetTemplate constructor_
 ```php
 public function actualDimension(): string
 ```
-_Get the actual dimension range (e.g. "A1:C10")_
+_Get the actual dimension range (e.g. "A1:C10")Note: scans every cell of the sheet (see countActualDimension()); expensive on wide sheets._
 
 ### Parameters
 
@@ -169,7 +172,7 @@ _Clone current row_
 ```php
 public function countActualColumns(): int
 ```
-_Returns the actual number of columns from the sheet data area_
+_Returns the actual number of columns from the sheet data areaNote: scans every cell of the sheet (see countActualDimension()); expensive on wide sheets._
 
 ### Parameters
 
@@ -186,7 +189,7 @@ public function countActualDimension(bool $countColumns = true,
                                      bool $countRows = true, 
                                      int $blockSize = 4096): array
 ```
-_Scan sheet data and returns actual number of rows and columns_
+_Scan sheet data and returns actual number of rows and columnsNote: this method performs a full streaming pass over the (decompressed) sheet XML,because the ZIP stream of a deflated inner file is not seekable — the tail cannot bereached without reading through the whole entry. On wide sheets requesting columns($countColumns = true) is significantly more expensive than rows only, since everycell tag must be scanned. Prefer dimension() when the declared range is enough._
 
 ### Parameters
 
@@ -338,11 +341,20 @@ _None_
 ```php
 public function fill(array $params): SheetTemplate
 ```
-_Replacement for the entire cell value_
+_Replace the entire cell value: applies only when the whole cell equals the key ('{{X}}', not 'text {{X}}')._
 
 ### Parameters
 
-* `array $params`
+* `array $params` – Map of \[placeholder => value]; applied to every cell written to the output
+
+---
+
+### Examples
+
+```php
+$sheet->fill(['{{COMPANY}}' => 'ACME Inc.', '{{NUMBER}}' => 128]);
+```
+
 
 ---
 
@@ -382,7 +394,7 @@ _None_
 
 ```php
 public function from(string $topLeftCell, 
-                     ?bool $firstRowKeys = false): avadim\FastExcelReader\Sheet
+                     ?bool $firstRowKeys = false): avadim\FastExcelReader\AbstractSheet
 ```
 _Set top left of read area. Alias of setReadArea()_
 
@@ -596,7 +608,7 @@ _Get image name_
 ```php
 public function getMergedCells(): ?array
 ```
-_Get merged cells. Returns an array \[min_cell => range]_
+_Get merged cells. Returns an array \[min_cell => range]Note: merge definitions live after <sheetData>, so the first call reads the sheet XMLthrough to the end (result is cached). Lazy — only triggered when merged data is requested._
 
 ### Parameters
 
@@ -673,12 +685,22 @@ _Get row style_
 public function getRowTemplate(int $rowNumber, 
                                ?bool $savePointerPosition = false): RowTemplateCollection
 ```
-_Get row template for specified row number_
+_Capture a source row as a reusable template; returns a collection (use it with insertRow())._
 
 ### Parameters
 
-* `int $rowNumber`
-* `bool|null $savePointerPosition`
+* `int $rowNumber` – Source row number to capture
+* `bool|null $savePointerPosition` – If false (default), the read cursor is advanced to this row
+
+---
+
+### Examples
+
+```php
+$tpl = $sheet->getRowTemplate(7);
+foreach ($data as $row) { $sheet->insertRow($tpl, ['A' => $row['id']]); }
+```
+
 
 ---
 
@@ -690,13 +712,22 @@ _Get row template for specified row number_
 public function getRowTemplates(int $rowNumberMin, int $rowNumberMax, 
                                 ?bool $savePointerPosition = false): RowTemplateCollection
 ```
-_Get row templates for specified row range_
+_Capture a range of source rows as templates; insertRow() cycles through them (e.g. for zebra striping)._
 
 ### Parameters
 
-* `int $rowNumberMin`
-* `int $rowNumberMax`
-* `bool|null $savePointerPosition`
+* `int $rowNumberMin` – First source row of the range
+* `int $rowNumberMax` – Last source row of the range
+* `bool|null $savePointerPosition` – If false (default), the read cursor is advanced to $rowNumberMax
+
+---
+
+### Examples
+
+```php
+$tpls = $sheet->getRowTemplates(7, 8); // two styles, alternated on each insertRow()
+```
+
 
 ---
 
@@ -797,12 +828,21 @@ _Get full path to the image in the ZIP archive_
 ```php
 public function insertRow($row, ?array $cellData = []): SheetTemplate
 ```
-_Insert row with data_
+_Insert a row at the current output position, filling it with data by column letter._
 
 ### Parameters
 
-* `array|RowTemplateCollection|RowTemplate $row`
-* `array|null $cellData`
+* `array|RowTemplateCollection|RowTemplate $row` – A template (or collection to cycle through), or a plain \[col => value] array for a blank row
+* `array|null $cellData` – Values keyed by column letter, e.g. \['A' => 1, 'B' => 'name']
+
+---
+
+### Examples
+
+```php
+$sheet->insertRow($rowTemplate, ['A' => $item['id'], 'B' => $item['name']]);
+```
+
 
 ---
 
@@ -933,7 +973,7 @@ _None_
 ```php
 public function maxActualRow(): int
 ```
-_Get the last actual row number_
+_Get the last actual row numberNote: performs a full streaming pass over the sheet (see countActualDimension())._
 
 ### Parameters
 
@@ -1337,15 +1377,14 @@ _Returns values and styles of cells of 1st row as array_
 ---
 
 ```php
-public function readFirstRowCellsFrom(string $areaRange, $columnKeys, 
+public function readFirstRowCellsFrom(string $areaRange, 
                                       ?bool $styleIdxInclude = null): array
 ```
-_Set read area and returns cell values of 1st row as array \[address => value]_
+_Set read area and returns cell values of 1st row as array \[address => value]Like readCellsFrom(), this method takes no column keys, because the result is keyed by cell address and renaming a column would corrupt it._
 
 ### Parameters
 
 * `string $areaRange`
-* `array|bool|int|null $columnKeys`
 * `bool|null $styleIdxInclude`
 
 ---
@@ -1510,11 +1549,20 @@ _Set read area and returns values, styles, and other info of cells as array_
 ```php
 public function replace(array $params): SheetTemplate
 ```
-_Replacement for substrings in a cell_
+_Replace a substring inside cell values: the key is matched anywhere in the text ('Date: {{DATE}}' works)._
 
 ### Parameters
 
-* `array $params`
+* `array $params` – Map of \[search => replacement]; applied to every cell written to the output
+
+---
+
+### Examples
+
+```php
+$sheet->replace(['{{DATE}}' => date('d.m.Y')]);
+```
+
 
 ---
 
@@ -1581,11 +1629,24 @@ _Rewind read generator, alias of reset()_
 ```php
 public function rows($callback): SheetTemplate
 ```
-_Transfers all rows from template to output_
+_Walk all source rows through a callback and write the result (read-modify-write over the whole sheet)._
 
 ### Parameters
 
-* `mixed $callback` – function ($rowNum, $rowData)
+* `callable $callback` – function($sourceRowNum, $targetRowNum, RowTemplate $row): return $row to write it, null to skip the row, false to stop
+
+---
+
+### Examples
+
+```php
+$sheet->rows(function ($src, $dst, $row) {
+if ($src === 1) return $row;            // keep header
+$row->setValue('C', $row->getValue('C') * 1.2);
+return $row;
+});
+```
+
 
 ---
 
@@ -1641,7 +1702,7 @@ _None_
 ---
 
 ```php
-public function setDateFormat($dateFormat): avadim\FastExcelReader\Sheet
+public function setDateFormat($dateFormat): avadim\FastExcelReader\AbstractSheet
 ```
 _Set date format_
 
@@ -1672,7 +1733,7 @@ _Set default row height_
 
 ```php
 public function setReadArea(string $areaRange, 
-                            ?bool $firstRowKeys = false): avadim\FastExcelReader\Sheet
+                            ?bool $firstRowKeys = false): avadim\FastExcelReader\AbstractSheet
 ```
 _Set top left and right bottom of read area_
 
@@ -1699,7 +1760,7 @@ setReadArea('C3'); // set top left only
 
 ```php
 public function setReadAreaColumns(string $columnsRange, 
-                                   ?bool $firstRowKeys = false): avadim\FastExcelReader\Sheet
+                                   ?bool $firstRowKeys = false): avadim\FastExcelReader\AbstractSheet
 ```
 _setReadArea('C:AZ') - set left and right columns of read areasetReadArea('C') - set left column only_
 
@@ -1715,7 +1776,7 @@ _setReadArea('C:AZ') - set left and right columns of read areasetReadArea('C') -
 ---
 
 ```php
-public function setState(string $state): avadim\FastExcelReader\Sheet
+public function setState(string $state): avadim\FastExcelReader\AbstractSheet
 ```
 _Set sheet state (visible, hidden, veryHidden)_
 
@@ -1755,6 +1816,21 @@ _Skip rows from the template_
 
 ---
 
+## stat()
+
+---
+
+```php
+public function stat(): array
+```
+_Returns statistics of the sheet: rows, columns and cell counts\['rows'  => \['min' => int, 'max' => int, 'count' => int],'cols'  => \['min' => string, 'max' => string, 'count' => int],'cells' => \['total' => int, 'filled' => int],]Note: performs a full streaming pass over the sheet XML (cached); memory is O(blockSize),but time grows with the number of cells — expensive on large/wide sheets._
+
+### Parameters
+
+_None_
+
+---
+
 ## state()
 
 ---
@@ -1777,12 +1853,12 @@ _None_
 ```php
 public function transferRows(?int $countRows = null, $callback): SheetTemplate
 ```
-_Transfers rows from template to output_
+_Copy the next $countRows source rows (or all remaining if null) to the output, with an optional callback._
 
 ### Parameters
 
-* `int|null $countRows` – Number of rows
-* `$callback`
+* `int|null $countRows` – Number of rows to transfer; null transfers all remaining rows
+* `callable|null $callback` – function($sourceRowNum, $targetRowNum, RowTemplate $row): return $row to write it, null to skip the row, false to stop
 
 ---
 
@@ -1794,12 +1870,27 @@ _Transfers rows from template to output_
 public function transferRowsUntil(?int $maxRowNum = null, 
                                   $callback): SheetTemplate
 ```
-_Transfers rows from template to output_
+_Copy source rows to the output up to $maxRowNum; an optional callback can modify, skip or stop each row._
 
 ### Parameters
 
-* `int|null $maxRowNum` – Max row of template
-* `$callback`
+* `int|null $maxRowNum` – Last source row to transfer; null transfers to the end
+* `callable|null $callback` – function($sourceRowNum, $targetRowNum, RowTemplate $row): return $row to write it, null to skip the row, false to stop
+
+---
+
+## withHeader()
+
+---
+
+```php
+public function withHeader(?array $columnNames = null): avadim\FastExcelReader\AbstractSheet
+```
+_Enables header modeTreats the first row of the read area as a header row and returns subsequent rowsas associative arrays keyed by column names.Pass $columnNames to name the columns yourself: the first row is still skipped,but the names are taken from the list instead of from its values. Names areapplied in column order, starting at the first column of the read area, so theyneed no knowledge of column letters. Columns past the end of the list keep thename from the header row._
+
+### Parameters
+
+* `array|null $columnNames` – Column names in order, or NULL to use the header row values
 
 ---
 

@@ -7,12 +7,16 @@
 * [colNum()](#colnum) – Converts an alphabetic column index to a numeric
 * [createReader()](#createreader) – Create internal reader
 * [createSheet()](#createsheet) – Create sheet template instance
-* [open()](#open) – Open XLSX file
+* [isXls()](#isxls) – TRUE if the file starts with the OLE2 compound file signature
+* [open()](#open) – Open a spreadsheet, choosing the reader by the file signature
+* [openCsv()](#opencsv) – Open CSV file
+* [openXls()](#openxls) – Open an XLS (Excel 97-2003, BIFF8) file
 * [setTempDir()](#settempdir) – Set dir for temporary files
 * [template()](#template)
 * [validate()](#validate) – Validate XLSX file
 * [countExtraImages()](#countextraimages) – Count "extra" images (images that are in the media folder but not in the drawings)
 * [countImages()](#countimages) – Returns the total count of images in the workbook
+* [countSheets()](#countsheets) – Returns the number of sheets in the workbook
 * [dateFormatter()](#dateformatter) – Set custom date formatter
 * [download()](#download) – Download generated file to client (send to browser)
 * [fill()](#fill) – Set replacements of entire cell values for the sheet
@@ -32,6 +36,7 @@
 * [hasDrawings()](#hasdrawings) – Returns TRUE if the workbook contains an any draw objects (not images only)
 * [hasExtraImages()](#hasextraimages) – Returns TRUE if there are any "extra" images
 * [hasImages()](#hasimages) – Returns TRUE if any sheet contains an image object
+* [hiddenSheets()](#hiddensheets) – Array of hidden sheets only
 * [innerFileList()](#innerfilelist) – Get list of inner files in XLSX
 * [mediaImageFiles()](#mediaimagefiles) – Get list of media image files in the workbook
 * [metadataImage()](#metadataimage) – Get image file name from metadata by index
@@ -55,10 +60,13 @@
 * [setReadArea()](#setreadarea) – Set top left and right bottom of read area
 * [sharedString()](#sharedstring) – Get string by index
 * [sheet()](#sheet)
+* [sheetExists()](#sheetexists) – Returns TRUE if a sheet with the given name exists
 * [sheets()](#sheets) – Array of all sheets
+* [stat()](#stat) – Returns statistics of the workbook: per-sheet breakdown and totals
 * [styleByIdx()](#stylebyidx) – Get style array by style index
 * [templateFile()](#templatefile)
 * [timestamp()](#timestamp) – Convert date to timestamp
+* [visibleSheets()](#visiblesheets) – Array of visible sheets only
 
 ---
 
@@ -147,14 +155,61 @@ _Create sheet template instance_
 
 ---
 
+## isXls()
+
+---
+
+```php
+public static function isXls(string $file): bool
+```
+_TRUE if the file starts with the OLE2 compound file signature_
+
+### Parameters
+
+* `string $file`
+
+---
+
 ## open()
 
 ---
 
 ```php
-public static function open(string $file): avadim\FastExcelReader\Excel
+public static function open(string $file): avadim\FastExcelReader\AbstractBook
 ```
-_Open XLSX file_
+_Open a spreadsheet, choosing the reader by the file signatureA ZIP container is XLSX, the OLE2 magic number is a legacy XLS workbook. The file extension is not consulted, because it is often wrong on files arriving from other systems._
+
+### Parameters
+
+* `string $file`
+
+---
+
+## openCsv()
+
+---
+
+```php
+public static function openCsv(string $file, 
+                               $options): avadim\FastExcelReader\Csv\CsvReader
+```
+_Open CSV file_
+
+### Parameters
+
+* `string $file`
+* `CsvOptions|array|null $options`
+
+---
+
+## openXls()
+
+---
+
+```php
+public static function openXls(string $file): avadim\FastExcelReader\Xls\XlsBook
+```
+_Open an XLS (Excel 97-2003, BIFF8) file_
 
 ### Parameters
 
@@ -242,12 +297,27 @@ _None_
 
 ---
 
+## countSheets()
+
+---
+
+```php
+public function countSheets(): int
+```
+_Returns the number of sheets in the workbook_
+
+### Parameters
+
+_None_
+
+---
+
 ## dateFormatter()
 
 ---
 
 ```php
-public function dateFormatter($formatter): avadim\FastExcelReader\Excel
+public function dateFormatter($formatter): avadim\FastExcelReader\AbstractBook
 ```
 _Set custom date formatter_
 
@@ -310,7 +380,7 @@ _Format date value_
 
 ```php
 public function from(string $topLeftCell, 
-                     ?bool $firstRowKeys = false): avadim\FastExcelReader\Sheet
+                     ?bool $firstRowKeys = false): avadim\FastExcelReader\AbstractSheet
 ```
 _Set top left of read area_
 
@@ -404,7 +474,7 @@ _None_
 
 ```php
 public function getFirstSheet(?string $areaRange = null, 
-                              ?bool $firstRowKeys = false): avadim\FastExcelReader\Sheet
+                              ?bool $firstRowKeys = false): avadim\FastExcelReader\AbstractSheet
 ```
 _Returns the first sheet as default_
 
@@ -469,7 +539,7 @@ _Returns a sheet by name_
 
 ```php
 public function getSheetById(int $sheetId, ?string $areaRange = null, 
-                             ?bool $firstRowKeys = false): avadim\FastExcelReader\Sheet
+                             ?bool $firstRowKeys = false): avadim\FastExcelReader\AbstractSheet
 ```
 _Returns a sheet by ID_
 
@@ -534,6 +604,21 @@ _None_
 public function hasImages(): bool
 ```
 _Returns TRUE if any sheet contains an image object_
+
+### Parameters
+
+_None_
+
+---
+
+## hiddenSheets()
+
+---
+
+```php
+public function hiddenSheets(): array
+```
+_Array of hidden sheets only_
 
 ### Parameters
 
@@ -799,7 +884,7 @@ _Save generated XLSX-file_
 
 ```php
 public function selectFirstSheet(?string $areaRange = null, 
-                                 ?bool $firstRowKeys = false): avadim\FastExcelReader\Sheet
+                                 ?bool $firstRowKeys = false): avadim\FastExcelReader\AbstractSheet
 ```
 _Selects the first sheet as default_
 
@@ -816,7 +901,7 @@ _Selects the first sheet as default_
 
 ```php
 public function selectSheet(string $name, ?string $areaRange = null, 
-                            ?bool $firstRowKeys = false): avadim\FastExcelReader\Sheet
+                            ?bool $firstRowKeys = false): avadim\FastExcelReader\AbstractSheet
 ```
 _Selects default sheet by name_
 
@@ -834,7 +919,7 @@ _Selects default sheet by name_
 
 ```php
 public function selectSheetById(int $sheetId, ?string $areaRange = null, 
-                                ?bool $firstRowKeys = false): avadim\FastExcelReader\Sheet
+                                ?bool $firstRowKeys = false): avadim\FastExcelReader\AbstractSheet
 ```
 _Selects default sheet by ID_
 
@@ -851,7 +936,7 @@ _Selects default sheet by ID_
 ---
 
 ```php
-public function setDateFormat(string $dateFormat): avadim\FastExcelReader\Excel
+public function setDateFormat(string $dateFormat): avadim\FastExcelReader\AbstractBook
 ```
 _Set date format for reading_
 
@@ -867,7 +952,7 @@ _Set date format for reading_
 
 ```php
 public function setReadArea(string $areaRange, 
-                            ?bool $firstRowKeys = false): avadim\FastExcelReader\Sheet
+                            ?bool $firstRowKeys = false): avadim\FastExcelReader\AbstractSheet
 ```
 _Set top left and right bottom of read area_
 
@@ -908,6 +993,21 @@ public function sheet(?string $name = null): ?SheetTemplate
 
 ---
 
+## sheetExists()
+
+---
+
+```php
+public function sheetExists(string $name): bool
+```
+_Returns TRUE if a sheet with the given name exists_
+
+### Parameters
+
+* `string $name`
+
+---
+
 ## sheets()
 
 ---
@@ -916,6 +1016,21 @@ public function sheet(?string $name = null): ?SheetTemplate
 public function sheets(): array
 ```
 _Array of all sheets_
+
+### Parameters
+
+_None_
+
+---
+
+## stat()
+
+---
+
+```php
+public function stat(): array
+```
+_Returns statistics of the workbook: per-sheet breakdown and totals\['sheets' => \['<sheetName>' => \['rows' => \[...], 'cols' => \[...], 'cells' => \['total' => int, 'filled' => int]],...],'total' => \['sheets'  => int,   // number of sheets'visible' => int,   // number of visible sheets'hidden'  => int,   // number of hidden sheets'rows'    => int,   // sum of actual rows over all sheets'cells'   => \['total' => int, 'filled' => int],],]Note: scans every sheet fully (see Sheet::stat()); expensive on large workbooks._
 
 ### Parameters
 
@@ -965,6 +1080,21 @@ _Convert date to timestamp_
 ### Parameters
 
 * `$excelDateTime`
+
+---
+
+## visibleSheets()
+
+---
+
+```php
+public function visibleSheets(): array
+```
+_Array of visible sheets only_
+
+### Parameters
+
+_None_
 
 ---
 
