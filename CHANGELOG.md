@@ -7,6 +7,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.1] - 2026-07-25
+
+### Fixed
+- Template `autoFilter` was lost and its range hardcoded to `A1`: the first sheet node after `</sheetData>` was skipped, so `<autoFilter>` (which comes first) was never transferred. The original filter range from the template is now preserved (#21).
+- Data validations (e.g. dropdown lists) were not transferred to the output. `<dataValidations>` are now carried over from the template (#2).
+
 ## [3.0.0] - 2026-07-25
 
 ### Breaking

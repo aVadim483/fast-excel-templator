@@ -4,6 +4,7 @@ namespace avadim\FastExcelTemplator;
 
 use avadim\FastExcelHelper\Helper;
 use avadim\FastExcelReader\Interfaces\InterfaceSheetReader;
+use avadim\FastExcelWriter\DataValidation\DataValidation;
 use avadim\FastExcelWriter\Interfaces\InterfaceSheetWriter;
 
 /**
@@ -130,24 +131,27 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
             return;
         }
 
-        // move to the next node after <sheetData>
+        // stop on the closing </sheetData>; the loop below reads the following sibling nodes
+        // (note: we must NOT skip the first sibling — e.g. <autoFilter> usually comes right here)
         do {
             if ($xmlReader->nodeType === \XMLReader::END_ELEMENT && $xmlReader->name === 'sheetData') {
-                $xmlReader->next();
                 break;
             }
         } while ($xmlReader->read());
 
-        $tags = ['autoFilter', 'pageMargins', 'pageSetup', 'drawing', 'legacyDrawing', 'headerFooter'];
+        $tags = ['autoFilter', 'dataValidations', 'pageMargins', 'pageSetup', 'drawing', 'legacyDrawing', 'headerFooter'];
         while ($xmlReader->read()) {
             if ($xmlReader->nodeType === \XMLReader::ELEMENT) {
                 if (in_array($xmlReader->name, $tags)) {
                     if ($xmlReader->name === 'autoFilter') {
                         $ref = $xmlReader->getAttribute('ref');
                         if ($ref) {
-                            //$range = Helper::rangeArray($ref);
-                            $this->sheetWriter->setAutofilter(1, 1);
+                            // keep the original filter range from the template instead of a hardcoded A1
+                            $this->sheetWriter->setAutoFilter($ref);
                         }
+                    }
+                    elseif ($xmlReader->name === 'dataValidations') {
+                        $this->_transferDataValidations($xmlReader->expand());
                     }
                     elseif ($xmlReader->name === 'headerFooter') {
                         $options = $xmlReader->getAllAttributes();
@@ -167,6 +171,57 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
             }
         }
         $this->postReadDone = true;
+    }
+
+    /**
+     * Transfer the template's <dataValidations> (e.g. dropdown lists) to the output sheet.
+     *
+     * @param \DOMNode|null $node The <dataValidations> element captured from the template
+     *
+     * @return void
+     */
+    private function _transferDataValidations($node): void
+    {
+        if (!$node instanceof \DOMElement) {
+            return;
+        }
+        foreach ($node->childNodes as $dv) {
+            if (!$dv instanceof \DOMElement || $dv->nodeName !== 'dataValidation') {
+                continue;
+            }
+            $type = $dv->getAttribute('type');
+            $sqref = $dv->getAttribute('sqref');
+            // 'type' and 'sqref' are required to rebuild a validation
+            if ($type === '' || $sqref === '') {
+                continue;
+            }
+            try {
+                $validation = DataValidation::make($type);
+                $operator = $dv->getAttribute('operator');
+                if ($operator !== '') {
+                    $validation->setOperator($operator);
+                }
+                foreach ($dv->childNodes as $formula) {
+                    if ($formula->nodeName === 'formula1') {
+                        $validation->setFormula1($formula->nodeValue);
+                    }
+                    elseif ($formula->nodeName === 'formula2') {
+                        $validation->setFormula2($formula->nodeValue);
+                    }
+                }
+                $validation->allowBlank($dv->getAttribute('allowBlank') === '1');
+                // sqref may list several ranges separated by spaces
+                foreach (explode(' ', $sqref) as $range) {
+                    if ($range !== '') {
+                        $this->sheetWriter->addDataValidation($range, $validation);
+                    }
+                }
+            }
+            catch (\Throwable $e) {
+                // skip a validation we cannot faithfully rebuild rather than break the whole save
+                continue;
+            }
+        }
     }
 
     /**
