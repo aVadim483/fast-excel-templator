@@ -103,6 +103,14 @@ final class FastExcelTemplatorTest extends TestCase
 
     public function test03()
     {
+        // The template uses the built-in "short date" format (code 14), which the reader
+        // resolves from the current ICU locale. Pin it so the expected dd.mm.yyyy output
+        // is stable regardless of the CI/OS locale.
+        $prevLocale = class_exists('\Locale') ? \Locale::getDefault() : null;
+        if ($prevLocale !== null) {
+            \Locale::setDefault('ru_RU');
+        }
+
         $tpl = __DIR__ . '/test_files/test-formulas.xlsx';
         $out = __DIR__ . '/test_files/test-formulas-out.xlsx';
 
@@ -118,6 +126,11 @@ final class FastExcelTemplatorTest extends TestCase
         $excelReader = \avadim\FastExcelReader\Excel::open($out);
         $excelReader->dateFormatter(true);
         $cells = $excelReader->readCellsWithStyles();
+
+        // date values are already formatted above; restore the locale before the assertions
+        if ($prevLocale !== null) {
+            \Locale::setDefault($prevLocale);
+        }
 
         $c1 = $cells['B2'];unset($c1['s']);
         $c0 = ['v' => '23.01.1985', 'f' => null, 'o' => '31070', 't' => 'date'];
