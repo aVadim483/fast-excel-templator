@@ -7,6 +7,37 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-08-16
+
+### Fixed
+- Formulas are parsed by a dedicated lexer instead of the PHP tokenizer. The tokenizer read Excel formulas by PHP rules, so `#` started a comment and every reference after an error constant (`=SUM(#REF!)+A3`) was left un-rebased; a range fell apart into its two ends, which is how mixed `R[-4]C[-1]:A2` notation could reach a saved file; and `$A$1` was read as a variable. Ranges are now converted as a whole, and sheet prefixes, string literals, table references and numbers such as `1E3` are told apart from real references.
+- A row was truncated when one of its cells held a falsy value: `RowTemplate` checked the current value instead of the key, so iteration stopped mid-row and every following cell was silently dropped.
+- The relationship to the removed `calcChain.xml` was left dangling in the saved workbook — the part name was misspelled (`workbook.xml.res` instead of `.rels`).
+- `Excel::outputFile()` threw an `Error` when `template()` had been called without an output file name.
+- A date cell was written twice, the second time without its number format; a cell built by hand without the `t` key raised a warning.
+- `SheetTemplate::mergedRange()` no longer overrides the inherited method with something else: it used to answer only for the top-left cell of a merge and return relative offsets instead of an address range. The offsets are internal and now live in their own method.
+- `RowTemplateCollection` implements `Iterator` but could not be iterated — `next()` wraps around by design, so a `foreach` never ended. The collection also required a separate `setSheet()` call before `cloneCell()`, otherwise it threw on an uninitialized property; the sheet is now an optional constructor argument.
+- `Excel::template()` returned `new self`, handing an `Excel` back to subclasses; it now returns `new static`.
+- `Reader::validate()` echoed the file list with `<br>` tags instead of returning it, and threw when called before any document was open.
+- `SheetWriter::getSheetViews()` reshaped the object's state while answering; the reshaping happens on input now.
+- Errors are no longer swallowed: `<dataValidations>` transfer catches the writer's own validation exception rather than every `\Throwable`, and `save()` reports a file it could not overwrite instead of silencing the failure.
+
+### Changed
+- Raised requirements: `avadim/fast-excel-reader` to `^4.4`, `avadim/fast-excel-writer` to `^6.16`.
+- Dropped the explicit `avadim/fast-excel-helper` requirement — it comes in through the reader and the writer, both of which require `^1.4`.
+- Row range errors are reported with the package `Exception` instead of a bare `\RuntimeException` (it extends `RuntimeException`, so existing `catch` blocks keep working).
+- `SheetTemplate::replaceRow()` and `cloneRow()` return `$this`, like the rest of the fluent API.
+
+### Deprecated
+- `Excel::$instance` — assigned but never read, and overwritten by every new workbook. Keep the object returned by `template()` instead. To be removed in 4.0.
+
+### Performance
+- Capturing a row template no longer scans every merge of the sheet for every cell of that row.
+
+### Docs
+- Added `BACKLOG.md` with the known issues left undone, including two bugs of `fast-excel-writer` that affect this package.
+- Regenerated the API reference (it had been missing the reader 4.4 methods).
+
 ## [3.1.0] - 2026-07-25
 
 ### Changed
