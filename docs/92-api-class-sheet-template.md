@@ -16,6 +16,7 @@
 * [dimensionArray()](#dimensionarray) – Get sheet dimension as an array
 * [extractConditionalFormatting()](#extractconditionalformatting) – Extracts conditional formatting rules from the sheet
 * [extractDataValidations()](#extractdatavalidations) – Extracts data validation rules from the sheet
+* [extractHyperlinks()](#extracthyperlinks) – Extracts the <hyperlinks> section of the sheet and resolves external
 * [fill()](#fill) – Replace the entire cell value: applies only when the whole cell equals the key ('{{X}}', not 'text {{X}}').
 * [firstCol()](#firstcol) – Get letter of the first column in the read area
 * [firstRow()](#firstrow) – Get number of the first row in the read area
@@ -28,6 +29,7 @@
 * [getConditionalFormatting()](#getconditionalformatting) – Get conditional formatting rules
 * [getDataValidations()](#getdatavalidations) – Get data validation rules
 * [getFreezePaneInfo()](#getfreezepaneinfo) – Get freeze pane info
+* [getHyperlinks()](#gethyperlinks) – Get cell hyperlinks, keyed by the cell (or range) they are anchored to
 * [getImageBlob()](#getimageblob) – Get image content as binary string
 * [getImageList()](#getimagelist) – Get image list
 * [getImageListByRow()](#getimagelistbyrow) – Get image list by row number
@@ -58,7 +60,7 @@
 * [maxActualRow()](#maxactualrow) – Get the last actual row number
 * [maxColumn()](#maxcolumn) – Max column from dimension value
 * [maxRow()](#maxrow) – Max row number from dimension value
-* [mergedRange()](#mergedrange) – Returns the rel range of merged cells that contains the specified cell
+* [mergedRange()](#mergedrange) – Get merged range for the cell
 * [minActualColumn()](#minactualcolumn) – Get the first actual column letter
 * [minActualRow()](#minactualrow) – Get the first actual row number
 * [minColumn()](#mincolumn) – Min column from dimension value
@@ -334,6 +336,21 @@ _None_
 
 ---
 
+## extractHyperlinks()
+
+---
+
+```php
+public function extractHyperlinks(): void
+```
+_Extracts the <hyperlinks> section of the sheet and resolves externaltargets from the sheet relationships file_
+
+### Parameters
+
+_None_
+
+---
+
 ## fill()
 
 ---
@@ -519,6 +536,21 @@ _None_
 public function getFreezePaneInfo(): ?array
 ```
 _Get freeze pane info_
+
+### Parameters
+
+_None_
+
+---
+
+## getHyperlinks()
+
+---
+
+```php
+public function getHyperlinks(): array
+```
+_Get cell hyperlinks, keyed by the cell (or range) they are anchored toEach entry is\['link' => string, 'location' => string, 'display' => string, 'tooltip' => string]where 'link' is the resolved external target (the URL from the sheetrelationships), and 'location' is the in-document location - a cellreference like 'Sheet2!A1' for an internal link, or a fragment appended toan external target. Absent attributes are returned as empty strings._
 
 ### Parameters
 
@@ -1018,7 +1050,7 @@ _Max row number from dimension value_
 ```php
 public function mergedRange(string $cellAddress): ?string
 ```
-_Returns the rel range of merged cells that contains the specified cell_
+_Get merged range for the cell_
 
 ### Parameters
 

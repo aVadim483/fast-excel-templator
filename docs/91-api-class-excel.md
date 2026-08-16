@@ -8,8 +8,11 @@
 * [createReader()](#createreader) – Create internal reader
 * [createSheet()](#createsheet) – Create sheet template instance
 * [isXls()](#isxls) – TRUE if the file starts with the OLE2 compound file signature
+* [isXlsx()](#isxlsx) – TRUE if the file starts with the ZIP local file header signature
 * [open()](#open) – Open a spreadsheet, choosing the reader by the file signature
 * [openCsv()](#opencsv) – Open CSV file
+* [openStream()](#openstream) – Open a spreadsheet from an open stream resource
+* [openString()](#openstring) – Open a spreadsheet held in a string, choosing the reader by its signature
 * [openXls()](#openxls) – Open an XLS (Excel 97-2003, BIFF8) file
 * [setTempDir()](#settempdir) – Set dir for temporary files
 * [template()](#template)
@@ -30,6 +33,7 @@
 * [getFirstSheet()](#getfirstsheet) – Returns the first sheet as default
 * [getFormatPattern()](#getformatpattern) – Get format pattern by style index
 * [getImageList()](#getimagelist) – Get the list of images from the workbook
+* [getProperties()](#getproperties) – Get the document properties of the workbook
 * [getSheet()](#getsheet) – Returns a sheet by name
 * [getSheetById()](#getsheetbyid) – Returns a sheet by ID
 * [getSheetNames()](#getsheetnames) – Get names array of all sheets
@@ -41,7 +45,7 @@
 * [mediaImageFiles()](#mediaimagefiles) – Get list of media image files in the workbook
 * [metadataImage()](#metadataimage) – Get image file name from metadata by index
 * [output()](#output) – Alias of download()
-* [outputFile()](#outputfile)
+* [outputFile()](#outputfile) – Name of the output file, or an empty string if it was not specified yet
 * [readCallback()](#readcallback) – Reads cell values and passes them to a callback function
 * [readCells()](#readcells) – Returns the values of all cells as array
 * [readCellStyles()](#readcellstyles) – Returns the styles of all cells as array
@@ -66,6 +70,7 @@
 * [styleByIdx()](#stylebyidx) – Get style array by style index
 * [templateFile()](#templatefile)
 * [timestamp()](#timestamp) – Convert date to timestamp
+* [useLocaleFormats()](#uselocaleformats) – Opt in to locale-dependent patterns for the built-in date codes (numFmtId 14-22).
 * [visibleSheets()](#visiblesheets) – Array of visible sheets only
 
 ---
@@ -170,18 +175,35 @@ _TRUE if the file starts with the OLE2 compound file signature_
 
 ---
 
+## isXlsx()
+
+---
+
+```php
+public static function isXlsx(string $file): bool
+```
+_TRUE if the file starts with the ZIP local file header signatureAn XLSX package is a ZIP archive, so it begins with "PK\x03\x04". This iswhat lets open() tell a real XLSX apart from plain text, which is thenread as CSV._
+
+### Parameters
+
+* `string $file`
+
+---
+
 ## open()
 
 ---
 
 ```php
-public static function open(string $file): avadim\FastExcelReader\AbstractBook
+public static function open(string $file, 
+                            $options): avadim\FastExcelReader\AbstractBook
 ```
-_Open a spreadsheet, choosing the reader by the file signatureA ZIP container is XLSX, the OLE2 magic number is a legacy XLS workbook. The file extension is not consulted, because it is often wrong on files arriving from other systems._
+_Open a spreadsheet, choosing the reader by the file signatureThe OLE2 magic number is a legacy XLS workbook, a ZIP container is XLSX,and anything else is treated as delimited text (CSV). The file extensionis not consulted, because it is often wrong on files arriving from othersystems. Pass $options\['format'] = 'csv' to force the CSV reader, and anyCsvOptions keys (delimiter, enclosure, encoding, ...) to configure it._
 
 ### Parameters
 
 * `string $file`
+* `CsvOptions|array|null $options`
 
 ---
 
@@ -199,6 +221,40 @@ _Open CSV file_
 
 * `string $file`
 * `CsvOptions|array|null $options`
+
+---
+
+## openStream()
+
+---
+
+```php
+public static function openStream($stream, 
+                                  $options): avadim\FastExcelReader\AbstractBook
+```
+_Open a spreadsheet from an open stream resourceThe stream is copied (from its current position, without seeking, sonon-rewindable streams such as HTTP wrappers work) into a temporary fileand then opened like open(). This is the entry point for URLs(fopen('https://...')), php://memory and Flysystem/S3 read streams. Thecaller keeps ownership of the stream; it is not closed here. The temporaryfile is removed on script shutdown._
+
+### Parameters
+
+* `resource $stream` – An open, readable stream resource
+* `CsvOptions|array|null $options` – Same options as open()
+
+---
+
+## openString()
+
+---
+
+```php
+public static function openString(string $content, 
+                                  $options): avadim\FastExcelReader\AbstractBook
+```
+_Open a spreadsheet held in a string, choosing the reader by its signatureThe content is written to a temporary file and then opened exactly likeopen() - format is detected from the bytes, not from any file name, so anXLSX/XLS/CSV payload each read back the same as its on-disk counterpart.The temporary file is removed on script shutdown. Handy for content comingfrom a database blob, an HTTP response body or an S3/Flysystem read._
+
+### Parameters
+
+* `string $content` – Raw bytes of the workbook
+* `CsvOptions|array|null $options` – Same options as open()
 
 ---
 
@@ -515,6 +571,21 @@ _None_
 
 ---
 
+## getProperties()
+
+---
+
+```php
+public function getProperties(): array
+```
+_Get the document properties of the workbookReads the core properties (docProps/core.xml) and the extended,application properties (docProps/app.xml) into a single associative arraywith normalised keys - 'creator', 'lastModifiedBy', 'created', 'modified','title', 'subject', 'description', 'keywords', 'category', 'revision','application', 'company', 'manager', ... Only the properties present in thefile are returned; a workbook without a docProps part returns an emptyarray. The result is read on demand and cached._
+
+### Parameters
+
+_None_
+
+---
+
 ## getSheet()
 
 ---
@@ -693,7 +764,7 @@ _Alias of download()_
 ```php
 public function outputFile(): string
 ```
-
+_Name of the output file, or an empty string if it was not specified yet_
 
 ### Parameters
 
@@ -1080,6 +1151,21 @@ _Convert date to timestamp_
 ### Parameters
 
 * `$excelDateTime`
+
+---
+
+## useLocaleFormats()
+
+---
+
+```php
+public function useLocaleFormats(?string $locale = null): avadim\FastExcelReader\AbstractBook
+```
+_Opt in to locale-dependent patterns for the built-in date codes (numFmtId 14-22).By default these codes resolve to fixed, deterministic patterns, so the same file yields the same output on any server. Call this to render them with ICU locale patterns instead (the pre-4.x behaviour, but now explicit and with a chosen locale). Requires ext-intl._
+
+### Parameters
+
+* `string|null $locale` – ICU locale name (e.g. 'ru_RU'); NULL uses the process default locale
 
 ---
 

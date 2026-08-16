@@ -300,13 +300,22 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
-     * Returns the rel range of merged cells that contains the specified cell
+     * Offsets of the merged range that STARTS at the specified cell, or null
+     *
+     * The result is not an address range but a set of relative offsets ('R0C0:R0C2' means
+     * "two columns to the right of this very cell"), so that a captured row template can be
+     * re-merged at whatever row it is inserted into — see Helper::addToRange() in _writeWithStyle().
+     * Only the top-left cell of a merge answers; every other cell of the same merge returns null,
+     * because a merge has to be recreated once, from its own corner.
+     *
+     * Do not confuse it with mergedRange() inherited from the reader: that one answers for any
+     * cell inside a merge and returns a real address range ('A2:C2').
      *
      * @param string $cellAddress
      *
      * @return string|null
      */
-    public function mergedRange(string $cellAddress): ?string
+    protected function mergedRangeOffsets(string $cellAddress): ?string
     {
         $result = parent::mergedRange($cellAddress);
         if ($result && strpos($result, $cellAddress . ':') === 0) {
@@ -408,6 +417,9 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
             }
         }
         if ($findNum) {
+            // same guard as in readRow(): consult the merge map only for rows where a merge starts,
+            // instead of scanning every merge of the sheet for every single cell
+            $this->initSortedMergedCells();
             $xmlReader = $this->getRowTemplateReader($rowNumberMin, $rowNumberMax);
 
             while ($xmlReader->read()) {
@@ -424,7 +436,9 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
                                     $this->_cellValue($cell, $additionalData);
                                     $cellData = $additionalData;
                                     $cellData['__address'] = $addr;
-                                    $cellData['__merged'] = $this->mergedRange($addr);
+                                    $cellData['__merged'] = isset($this->sortedMergedCells[$r])
+                                        ? $this->mergedRangeOffsets($addr)
+                                        : null;
                                     $rowTemplate->addCell($m[1], $cellData);
                                 }
                             }
@@ -555,7 +569,7 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
             foreach ($rowData['__cells'] as $col => $cellData) {
                 $sourceAddress = $col . $rowNum;
                 $cellData['__sourceAddress'] = $sourceAddress;
-                if (isset($this->sortedMergedCells[$rowNum]) && ($merged = $this->mergedRange($sourceAddress))) {
+                if (isset($this->sortedMergedCells[$rowNum]) && ($merged = $this->mergedRangeOffsets($sourceAddress))) {
                     $cellData['__merged'] = $merged;
                 }
                 $rowTemplate->addCell($col, $cellData);
