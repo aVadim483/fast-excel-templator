@@ -8,7 +8,7 @@
 * [current()](#current) – Return the current element
 * [delRowTemplate()](#delrowtemplate) – Delete row template from collection
 * [key()](#key) – Return the key of the current element
-* [next()](#next) – Move forward to next element
+* [next()](#next) – Move forward to next element, wrapping around at the end
 * [rewind()](#rewind) – Rewind the Iterator to the first element
 * [setSheet()](#setsheet) – Set sheet template
 * [valid()](#valid) – Checks if current position is valid
@@ -20,13 +20,15 @@
 ---
 
 ```php
-public function __construct(?array $rowData = [])
+public function __construct(?array $rowData = [], 
+                            ?SheetTemplate $sheet = null)
 ```
 _RowTemplateCollection constructor_
 
 ### Parameters
 
 * `array|null $rowData`
+* `SheetTemplate|null $sheet` – Sheet the templates were captured from; some operations (cloneCell) need it, it can also be set later by setSheet()
 
 ---
 
@@ -116,7 +118,9 @@ _None_
 ```php
 public function next(): mixed
 ```
-_Move forward to next element_
+_Move forward to next element, wrapping around at the end_
+
+_The wrap-around is what insertRow() relies on: calling next() repeatedly cycles throughthe captured templates (e.g. two rows for zebra striping) as long as rows are inserted._
 
 ### Parameters
 
@@ -162,6 +166,8 @@ _Set sheet template_
 public function valid(): bool
 ```
 _Checks if current position is valid_
+
+_Since next() deliberately wraps around, the position alone can never end a foreach.The counter reset by rewind() is what makes a foreach walk the collection exactly once._
 
 ### Parameters
 

@@ -6,23 +6,31 @@ use avadim\FastExcelHelper\Helper;
 
 class RowTemplateCollection implements \Iterator
 {
-    protected SheetTemplate $sheet;
+    protected ?SheetTemplate $sheet = null;
     /** @var RowTemplate[]  */
     protected array $rowTemplates = [];
     protected ?int $pointer = null;
+
+    /** Number of templates already returned by next() since the last rewind(), see valid() */
+    protected int $visited = 0;
 
 
     /**
      * RowTemplateCollection constructor
      *
      * @param array|null $rowData
+     * @param SheetTemplate|null $sheet Sheet the templates were captured from; some operations
+     *                                  (cloneCell) need it, it can also be set later by setSheet()
      */
-    public function __construct(?array $rowData = [])
+    public function __construct(?array $rowData = [], ?SheetTemplate $sheet = null)
     {
         if ($rowData) {
             foreach ($rowData as $num => $row) {
                 $this->addRowTemplate($row, $num);
             }
+        }
+        if ($sheet) {
+            $this->setSheet($sheet);
         }
     }
 
@@ -82,10 +90,14 @@ class RowTemplateCollection implements \Iterator
         foreach ($this->rowTemplates as $rowTemplate) {
             $rowTemplate->cloneCell($colSource, $colTarget, $checkMerge);
         }
-        $sourceColIdx = Helper::colIndex($colSource);
-        $colAttributes = $this->sheet->sheetWriter->getColAttributes();
-        if (isset($colAttributes[$sourceColIdx]['width'])) {
-            $this->sheet->sheetWriter->setColWidth($colTarget, $colAttributes[$sourceColIdx]['width']);
+        // copying the column width is a bonus on top of cloning the cells, so a collection
+        // built without a sheet still clones instead of failing on an uninitialized property
+        if ($this->sheet) {
+            $sourceColIdx = Helper::colIndex($colSource);
+            $colAttributes = $this->sheet->sheetWriter->getColAttributes();
+            if (isset($colAttributes[$sourceColIdx]['width'])) {
+                $this->sheet->sheetWriter->setColWidth($colTarget, $colAttributes[$sourceColIdx]['width']);
+            }
         }
 
         return $this;
@@ -114,13 +126,17 @@ class RowTemplateCollection implements \Iterator
     }
 
     /**
-     * Move forward to next element
+     * Move forward to next element, wrapping around at the end
+     *
+     * The wrap-around is what insertRow() relies on: calling next() repeatedly cycles through
+     * the captured templates (e.g. two rows for zebra striping) as long as rows are inserted.
      *
      * @return mixed
      */
     #[\ReturnTypeWillChange]
     public function next()
     {
+        $this->visited++;
         $result = next($this->rowTemplates);
         if ($result === false || $this->pointer === null) {
             $result = reset($this->rowTemplates);
@@ -139,6 +155,7 @@ class RowTemplateCollection implements \Iterator
     public function rewind()
     {
         $this->pointer = array_key_first($this->rowTemplates);
+        $this->visited = 0;
 
         return reset($this->rowTemplates);
     }
@@ -146,13 +163,14 @@ class RowTemplateCollection implements \Iterator
     /**
      * Checks if current position is valid
      *
+     * Since next() deliberately wraps around, the position alone can never end a foreach.
+     * The counter reset by rewind() is what makes a foreach walk the collection exactly once.
+     *
      * @return bool
      */
     public function valid(): bool
     {
-        $result = current($this->rowTemplates);
-
-        return !empty($result);
+        return $this->visited < count($this->rowTemplates) && !empty(current($this->rowTemplates));
     }
 
 }

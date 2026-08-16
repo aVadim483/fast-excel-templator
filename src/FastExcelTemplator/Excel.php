@@ -12,6 +12,10 @@ use \avadim\FastExcelReader\Excel as ExcelReader;
  */
 class Excel extends ExcelReader
 {
+    /**
+     * @deprecated Assigned but never read, and a second workbook overwrites the first one.
+     *             Keep a reference to the object returned by template() instead. To be removed in 4.0
+     */
     public static Excel $instance;
 
     public ExcelWriter $excelWriter;
@@ -160,7 +164,8 @@ class Excel extends ExcelReader
      */
     public static function template(string $templateFile, ?string $outputFile = null, ?array $options = []): Excel
     {
-        return new self($templateFile, $outputFile, $options);
+        // 'static' rather than 'self', so that a subclass of Excel gets an instance of itself
+        return new static($templateFile, $outputFile, $options);
     }
 
     /**

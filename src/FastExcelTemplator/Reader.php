@@ -87,14 +87,24 @@ class Reader extends \avadim\FastExcelReader\Reader
     }
 
     /**
-     * Validate template file
+     * List the inner files of the template
+     *
+     * It used to echo them with <br> tags, which a library has no business doing — print the
+     * returned list yourself if you need it.
+     *
+     * Parser validation is switched on only when a document is already open: XMLReader refuses
+     * to touch parser properties before that, and the file list does not depend on them, so the
+     * method answers instead of failing when called right after the reader was created.
+     *
+     * @return array List of files inside the template
      */
     public function validate()
     {
-        $this->setParserProperty(self::VALIDATE, true);
-        foreach ($this->fileList() as $file) {
-            echo $file, '<br>';
+        if ($this->innerFile !== null) {
+            $this->setParserProperty(self::VALIDATE, true);
         }
+
+        return $this->fileList();
     }
 }
 

@@ -349,21 +349,21 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     protected function getRowTemplateReader(int $rowNumberMin, int $rowNumberMax): Reader
     {
         if ($rowNumberMax < $rowNumberMin) {
-            throw new \RuntimeException('$rowNumberMax cannot be less then $rowNumberMin');
+            throw new Exception('$rowNumberMax cannot be less then $rowNumberMin');
         }
         // Skip boundary checks when the sheet has no <dimension> tag (min/max row numbers are unknown)
         if (isset($this->dimension['min_row_num'], $this->dimension['max_row_num'])) {
             if ($rowNumberMin < $this->dimension['min_row_num']) {
-                throw new \RuntimeException('$rowNumberMin cannot be less then ' . $this->dimension['min_row_num']);
+                throw new Exception('$rowNumberMin cannot be less then ' . $this->dimension['min_row_num']);
             }
             if ($rowNumberMin > $this->dimension['max_row_num']) {
-                throw new \RuntimeException('$rowNumberMin cannot be more then ' . $this->dimension['max_row_num']);
+                throw new Exception('$rowNumberMin cannot be more then ' . $this->dimension['max_row_num']);
             }
             if ($rowNumberMax < $this->dimension['min_row_num']) {
-                throw new \RuntimeException('$rowNumberMax cannot be less then ' . $this->dimension['min_row_num']);
+                throw new Exception('$rowNumberMax cannot be less then ' . $this->dimension['min_row_num']);
             }
             if ($rowNumberMax > $this->dimension['max_row_num']) {
-                throw new \RuntimeException('$rowNumberMax cannot be more then ' . $this->dimension['max_row_num']);
+                throw new Exception('$rowNumberMax cannot be more then ' . $this->dimension['max_row_num']);
             }
         }
 
@@ -464,10 +464,7 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
             $this->skipRowsUntil($rowNumberMax);
         }
 
-        $rowsCollection = new RowTemplateCollection($rows);
-        $rowsCollection->setSheet($this);
-
-        return $rowsCollection;
+        return new RowTemplateCollection($rows, $this);
     }
 
     /**
@@ -529,24 +526,33 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
      *
      * @param mixed $row
      * @param array|null $cellData
+     *
+     * @return $this
      */
     public function replaceRow($row, ?array $cellData = [])
     {
         $this->insertRow($row, $cellData);
+        // consume exactly one source row, so the replacement takes its place
         foreach ($this->readRow() as $rowNum => $rowData) {
             break;
         }
+
+        return $this;
     }
 
     /**
      * Clone current row
      *
      * @param array|null $cellData
+     *
+     * @return $this
      */
     public function cloneRow(?array $cellData = [])
     {
         $row = $this->getRowTemplate($this->lastReadRowNum);
         $this->insertRow($row, $cellData);
+
+        return $this;
     }
 
     /**

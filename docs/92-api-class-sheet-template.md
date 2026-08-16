@@ -157,7 +157,7 @@ _None_
 ---
 
 ```php
-public function cloneRow(?array $cellData = [])
+public function cloneRow(?array $cellData = []): $this
 ```
 _Clone current row_
 
@@ -1603,7 +1603,7 @@ $sheet->replace(['{{DATE}}' => date('d.m.Y')]);
 ---
 
 ```php
-public function replaceRow($row, ?array $cellData = [])
+public function replaceRow($row, ?array $cellData = []): $this
 ```
 _Replace row with data_
 
