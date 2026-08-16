@@ -20,7 +20,7 @@ class Excel extends ExcelReader
 
     protected string $templateFile;
 
-    protected string $outputFile;
+    protected string $outputFile = '';
 
     /** @var SheetTemplate[] */
     protected array $sheets = [];
@@ -61,6 +61,8 @@ class Excel extends ExcelReader
     }
 
     /**
+     * Name of the output file, or an empty string if it was not specified yet
+     *
      * @return string
      */
     public function outputFile(): string

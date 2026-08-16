@@ -78,6 +78,50 @@ final class RowTemplateTest extends TestCase
         $this->assertSame(3, $cells['I']['v']);
     }
 
+    /**
+     * The iterator must walk the whole row even if some cell holds a falsy value:
+     * checking the current *value* instead of the key used to stop the loop in the
+     * middle of the row, so every cell after it was silently lost on insertRow().
+     */
+    public function testIterationIsNotStoppedByFalsyCell()
+    {
+        $row = new RowTemplate();
+        $row->addCell('A', 'first');
+        $row->addCell('B', null);   // not scalar -> stored as is
+        $row->addCell('C', []);     // empty array -> falsy too
+        $row->addCell('D', 'last');
+
+        $visited = [];
+        foreach ($row as $colLetter => $cell) {
+            $visited[] = $colLetter;
+        }
+
+        $this->assertSame(['A', 'B', 'C', 'D'], $visited);
+    }
+
+    /**
+     * The same row, written to a real file: cells after the falsy one must not disappear.
+     */
+    public function testFalsyCellDoesNotTruncateInsertedRow()
+    {
+        $excel = $this->template();
+        $sheet = $excel->sheet();
+
+        $row = new RowTemplate();
+        $row->addCell('A', 'first');
+        $row->addCell('B', null);
+        $row->addCell('C', 'last');
+
+        $sheet->insertRow($row);
+        $excel->save();
+
+        $cells = $this->read();
+
+        $this->assertSame('first', $cells['A']['v']);
+        $this->assertArrayHasKey('C', $cells);
+        $this->assertSame('last', $cells['C']['v']);
+    }
+
     public function testSetValueRejectsNonScalar()
     {
         $this->expectException(Exception::class);

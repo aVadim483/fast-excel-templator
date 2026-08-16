@@ -78,7 +78,10 @@ class RowTemplate implements \Iterator
      */
     public function valid(): bool
     {
-        return (bool)current($this->cells);
+        // NOTE: the position must be checked by the key, not by the value:
+        // a cell may legitimately hold a falsy value (null, 0, ''), and testing
+        // the value would silently stop the iteration in the middle of the row
+        return key($this->cells) !== null;
     }
 
     /**

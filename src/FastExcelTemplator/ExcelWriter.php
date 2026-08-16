@@ -62,10 +62,10 @@ class ExcelWriter extends \avadim\FastExcelWriter\Excel
                     $str = preg_replace('#<[^>]+calcChain.xml[^>]+>#i', '', $str);
                     $zip->addFromString('[Content_Types].xml', $str);
                 }
-                $str = $zip->getFromName('xl/_rels/workbook.xml.res');
+                $str = $zip->getFromName('xl/_rels/workbook.xml.rels');
                 if ($str) {
                     $str = preg_replace('#<[^>]+calcChain.xml[^>]+>#i', '', $str);
-                    $zip->addFromString('xl/_rels/workbook.xml.res', $str);
+                    $zip->addFromString('xl/_rels/workbook.xml.rels', $str);
                 }
             }
 

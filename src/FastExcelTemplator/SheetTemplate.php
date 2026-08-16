@@ -617,20 +617,23 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
             $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellData['f']);
         }
         else {
-            if ($cellData['t'] === 'date') {
-                $pattern = $this->excel->getDateFormatPattern($cellData['s']);
-                $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellData['v'], ['format' => $pattern]);
+            // 't' may be missing in a cell built by hand (e.g. RowTemplate::addCell() with an array)
+            $cellType = $cellData['t'] ?? null;
+            $cellValue = $cellData['v'] ?? null;
+            if ($cellType === 'date') {
+                $pattern = $this->excel->getDateFormatPattern($cellData['s'] ?? 0);
+                $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellValue, ['format' => $pattern]);
                 $numberFormatType = 'n_date';
             }
-            if ($cellData['t'] === 'error' && $cellData['v'] && $cellData['v'][0] === '#') {
-                $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, ['v' => $cellData['v'], 't' => 'e']);
+            elseif ($cellType === 'error' && $cellValue && $cellValue[0] === '#') {
+                $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, ['v' => $cellValue, 't' => 'e']);
                 if (empty($cellData['s'])) {
                     $cellData['s'] = 0;
                 }
                 $numberFormatType = 'n_error';
             }
             else {
-                $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellData['v']);
+                $this->sheetWriter->_writeToCellByIdx($cellAddressIdx, $cellValue);
             }
         }
         if (isset($cellData['s'])) {
