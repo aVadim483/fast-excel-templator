@@ -256,26 +256,13 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     protected function _cellFormula($node, string $address): string
     {
         $formula = parent::_cellFormula($node, $address);
+        // an array formula is based on the top-left cell of its range, not on the current cell
         $ref = (string)$node->getAttribute('ref');
         if (!$ref) {
             $ref = $address;
         }
-        $tokens = token_get_all('<?' . $formula . '?>');
-        $tokens[0] = '=';
-        $max = count($tokens) - 1;
-        unset($tokens[$max]);
-        $max--;
-        $result = '';
-        foreach ($tokens as $n => $t) {
-            if (isset($t[0]) && $t[0] === T_STRING && ($n === $max || $tokens[$n + 1] !== '(') && preg_match('/^[A-Z]+[0-9]+$/', $t[1])) {
-                $result .= Helper::A1toRC($t[1], $ref);
-            }
-            else {
-                $result .= (is_string($t) ? $t : $t[1]);
-            }
-        }
 
-        return $result;
+        return FormulaLexer::convertA1toRC($formula, $ref);
     }
 
     /**
