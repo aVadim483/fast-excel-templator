@@ -286,7 +286,11 @@ class Excel extends ExcelReader
             $fileName = $this->excelWriter->getFileName();
         }
         if (is_file($fileName) && $overWrite) {
-            @unlink($fileName);
+            // a file left in place (locked, read-only, no permission) would make the writer fail
+            // later with a confusing message about the temporary file, so say it here instead
+            if (!@unlink($fileName) && is_file($fileName)) {
+                throw new Exception('Cannot overwrite existing file "' . $fileName . '"');
+            }
         }
         foreach ($this->sheets as $sheet) {
             //$sheet->transferRows();

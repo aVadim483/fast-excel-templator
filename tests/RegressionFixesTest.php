@@ -99,6 +99,28 @@ final class RegressionFixesTest extends TestCase
     }
 
     /**
+     * save() deletes the previous output before writing; that delete is now checked instead of
+     * being silenced, so an ordinary overwrite must still go through without an exception.
+     */
+    public function testSaveOverwritesExistingOutput()
+    {
+        $out = __DIR__ . '/test_files/test-overwrite-out.xlsx';
+        @unlink($out);
+
+        for ($i = 0; $i < 2; $i++) {
+            $excel = Excel::template(self::TPL_FORMULAS, $out);
+            $excel->sheet()->transferRows();
+            self::assertTrue($excel->save(), 'save() run #' . ($i + 1));
+            unset($excel);
+        }
+
+        self::assertTrue(is_file($out));
+        self::assertNotEmpty(\avadim\FastExcelReader\Excel::open($out)->sheet()->readRows());
+
+        @unlink($out);
+    }
+
+    /**
      * A date cell must keep its value and its date format after being transferred.
      * (It used to be written twice: once with the format, then again without it.)
      */

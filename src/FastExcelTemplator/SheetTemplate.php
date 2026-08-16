@@ -5,6 +5,7 @@ namespace avadim\FastExcelTemplator;
 use avadim\FastExcelHelper\Helper;
 use avadim\FastExcelReader\Interfaces\InterfaceSheetReader;
 use avadim\FastExcelWriter\DataValidation\DataValidation;
+use avadim\FastExcelWriter\Exceptions\ExceptionDataValidation;
 use avadim\FastExcelWriter\Interfaces\InterfaceSheetWriter;
 
 /**
@@ -217,8 +218,10 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
                     }
                 }
             }
-            catch (\Throwable $e) {
-                // skip a validation we cannot faithfully rebuild rather than break the whole save
+            catch (ExceptionDataValidation $e) {
+                // The template may hold a type, operator or formula this writer cannot express;
+                // skip that single validation rather than break the whole save. Only the writer's
+                // own validation error is caught here, so a genuine bug still surfaces.
                 continue;
             }
         }

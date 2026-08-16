@@ -16,11 +16,17 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
     /**
      * Set sheet views attributes
      *
+     * The parent keeps plain attribute arrays in $sheetViews and wraps each of them into '_attr'
+     * itself, so the '_attr' level of the captured structure is unwrapped here, at write time,
+     * rather than inside the getter. The '_items' level (pane and selection nodes) is dropped on
+     * purpose: the writer regenerates those from the freeze settings, which Excel::_importSheets()
+     * transfers separately via setFreezeRows()/setFreezeColumns().
+     *
      * @param array $attributes
      */
     public function _setSheetViewsAttributes(array $attributes)
     {
-        $this->sheetViews = [$attributes];
+        $this->sheetViews = [$attributes['_attr'] ?? $attributes];
     }
 
     /**
@@ -35,20 +41,6 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
                 $this->sheetFormatPr[$key] = $val;
             }
         }
-    }
-
-    /**
-     * Get sheet views
-     *
-     * @return array
-     */
-    public function getSheetViews(): array
-    {
-        //return $this->sheetViews;
-        if (isset($this->sheetViews[0]['_attr'])) {
-            $this->sheetViews[0] = $this->sheetViews[0]['_attr'];
-        }
-        return parent::getSheetViews();
     }
 
     /**
