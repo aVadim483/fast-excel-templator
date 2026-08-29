@@ -7,6 +7,28 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- Two defects of `avadim/fast-excel-writer` that reached this package are gone with the writer 6.16.1:
+  - a reference shifted off the sheet kept its internal RC text (`R[-4]C[-1]`) instead of becoming `#REF!`, and a range could come out half in RC and half in A1 (`SUM(R[-4]C[-1]:A2)`). Row templates keep their formulas in RC to re-base them on insert, so this reached every template inserted above its source row;
+  - a workbook borrowed the locale of another workbook alive at the same time (a `ru` workbook wrote the euro sign), because the style manager kept a static instance overwritten by every constructor. The templator reached it through `RowTemplate::setCellStyle()` / `setRowStyle()`.
+- `Excel::download()` announced the file as the old `.xls` (`application/vnd.ms-excel`) instead of the XLSX MIME type, and sent no `Content-Length`. It also wrote its headers into a response that had already started, appending a workbook to whatever was printed before; it now reports that instead.
+- `SheetTemplate::readRow()` ended its loop on any falsy generator key rather than on the end of the generator — row numbers start at 1, so it worked by luck.
+- Loading a `styles.xml` that holds an `<xf>` outside of any known section raised a `TypeError` instead of ignoring the element.
+
+### Added
+- `Excel::MIME_TYPE`, and the `downloadHeaders()` / `sendHeaders()` / `headersSent()` hooks behind `download()`, so a subclass can change what is sent (and a test can observe it).
+
+### Changed
+- Raised requirement: `avadim/fast-excel-writer` to `^6.16.1`.
+
+### Tests
+- The test held back by the writer (a reference shifted off the sheet must become `#REF!`) is no longer skipped, and a range shifted the same way is covered next to it.
+- Two workbooks of different locales, alive at the same time, are asserted to keep their own currency.
+- New coverage for `download()` / `output()`, `SheetTemplate::replaceRow()`, `cloneRow()`, `writeRow()`, `writeCell()`, `RowTemplate::removeCell()` / `removeCells()`, and workbooks of several sheets.
+- The files the test suite writes are ignored by git instead of being committed.
+
 ## [3.2.0] - 2026-08-16
 
 ### Fixed

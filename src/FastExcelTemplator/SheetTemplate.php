@@ -569,7 +569,9 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
         if (empty($this->readGenerator)) {
             $this->readGenerator = $this->nextRow([], \avadim\FastExcelReader\Excel::RESULT_MODE_ROW, true);
         }
-        while ($rowNum = $this->readGenerator->key()) {
+        // the loop ends when the generator is exhausted, not when its key happens to be falsy
+        while ($this->readGenerator->valid()) {
+            $rowNum = $this->readGenerator->key();
             $rowData = $this->readGenerator->current();
             $rowTemplate = (new RowTemplate())->setSheetTemplate($this);
             if (isset($rowData['__row'])) {

@@ -1,2 +1,8 @@
-tests/*.vbs
 _libs/
+tests/*.vbs
+
+# Artifacts written by the test suite
+.phpunit.result.cache
+tests/demo1-out.xlsx
+tests/test_files/*-out.xlsx
+tests/test_files/*-tpl.xlsx

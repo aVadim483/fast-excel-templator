@@ -360,7 +360,7 @@ class RowTemplate implements \Iterator
     {
         $colLetter = strtoupper($colLetter);
 
-        return$this->cells[$colLetter]['v'] ?? null;
+        return $this->cells[$colLetter]['v'] ?? null;
     }
 
     /**

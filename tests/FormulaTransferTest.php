@@ -131,7 +131,7 @@ final class FormulaTransferTest extends TestCase
      * Excel turns such a reference into #REF!; the RC notation must not survive into the file.
      *
      * The conversion back to A1 happens in avadim/fast-excel-writer (FormulaConverter::normalize()),
-     * which currently keeps the unconvertible RC text as is, so this is pending a fix there.
+     * which used to keep the unconvertible RC text as is — fixed in the writer 6.16.1.
      */
     public function testReferenceShiftedOffTheSheetBecomesRefError()
     {
@@ -152,10 +152,37 @@ final class FormulaTransferTest extends TestCase
 
         $formulas = $this->formulas($this->out);
 
-        if (strpos($formulas['B2'], 'R[') !== false) {
-            self::markTestSkipped('needs #REF! fallback in fast-excel-writer, got: ' . $formulas['B2']);
-        }
+        self::assertSame('#REF!*2', $formulas['B2']);
+        self::assertStringNotContainsString('R[', $formulas['__xml']);
+        self::assertStringNotContainsString('C[', $formulas['__xml']);
+    }
 
-        self::assertStringContainsString('#REF!', $formulas['B2']);
+    /**
+     * The same shift applied to a range: the range is converted as a whole, so it cannot come out
+     * half in RC and half in A1 ('SUM(R[-4]C[-1]:A2)'). An end that lands outside the sheet takes
+     * the whole range down with it, exactly as Excel does.
+     */
+    public function testRangeShiftedOffTheSheetBecomesRefError()
+    {
+        $writer = Writer::create(['Sheet1']);
+        $ws = $writer->sheet();
+        for ($i = 1; $i <= 4; $i++) {
+            $ws->writeRow([$i * 10]);
+        }
+        $ws->writeRow([50, '=SUM(A1:A5)']);   // row 5: the range starts four rows up
+        $writer->save($this->tpl);
+
+        $excel = Excel::template($this->tpl, $this->out);
+        $sheet = $excel->sheet();
+        $rowTemplate = $sheet->getRowTemplate(5, true);
+        $sheet->transferRowsUntil(1);
+        $sheet->insertRow($rowTemplate);   // lands on row 2, so the range would start at row -2
+        $excel->save();
+
+        $formulas = $this->formulas($this->out);
+
+        self::assertSame('SUM(#REF!)', $formulas['B2']);
+        self::assertStringNotContainsString('R[', $formulas['__xml']);
+        self::assertStringNotContainsString('C[', $formulas['__xml']);
     }
 }

@@ -13,6 +13,11 @@ use \avadim\FastExcelReader\Excel as ExcelReader;
 class Excel extends ExcelReader
 {
     /**
+     * MIME type of the generated files
+     */
+    public const MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+    /**
      * @deprecated Assigned but never read, and a second workbook overwrites the first one.
      *             Keep a reference to the object returned by template() instead. To be removed in 4.0
      */
@@ -301,12 +306,65 @@ class Excel extends ExcelReader
     }
 
     /**
+     * Headers sent by download() before the body of the file
+     *
+     * @param string $name Name of the file offered to the client
+     * @param int $fileSize Size of the file in bytes
+     *
+     * @return string[]
+     */
+    protected function downloadHeaders(string $name, int $fileSize): array
+    {
+        return [
+            'Cache-Control: max-age=0',
+            'Content-Type: ' . self::MIME_TYPE,
+            'Content-Disposition: attachment; filename="' . $name . '"',
+            'Content-Length: ' . $fileSize,
+        ];
+    }
+
+    /**
+     * Sends the headers of the response
+     *
+     * @param string[] $headers
+     *
+     * @return void
+     */
+    protected function sendHeaders(array $headers)
+    {
+        foreach ($headers as $header) {
+            header($header);
+        }
+    }
+
+    /**
+     * Whether the response headers were already sent, so no file can be sent anymore
+     *
+     * Under the CLI SAPI there is no response to spoil: headers_sent() turns true with the
+     * first byte of ordinary output, so the check is limited to the SAPIs where it means
+     * something.
+     *
+     * @param string|null $file Name of the file that started the output
+     * @param int|null $line Line that started the output
+     *
+     * @return bool
+     */
+    protected function headersSent(?string &$file = null, ?int &$line = null): bool
+    {
+        return PHP_SAPI !== 'cli' && headers_sent($file, $line);
+    }
+
+    /**
      * Download generated file to client (send to browser)
      *
      * @param string|null $name
      */
     public function download(?string $name = null)
     {
+        if ($this->headersSent($file, $line)) {
+            throw new Exception('Cannot send the file, the headers were already sent in "' . $file . '" on line ' . $line);
+        }
+
         $tmpFile = $this->excelWriter->writer->makeTempFileName(uniqid('xlsx_writer_'));
         $this->save($tmpFile);
         if (!$name) {
@@ -319,9 +377,7 @@ class Excel extends ExcelReader
             }
         }
 
-        header('Cache-Control: max-age=0');
-        header('Content-Type: application/vnd.ms-excel');
-        header('Content-Disposition: attachment; filename="' . $name . '"');
+        $this->sendHeaders($this->downloadHeaders($name, (int)filesize($tmpFile)));
 
         readfile($tmpFile);
         unlink($tmpFile);

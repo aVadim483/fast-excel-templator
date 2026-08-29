@@ -27,7 +27,7 @@
         "ext-mbstring": "*",
         "ext-xmlreader": "*",
         "ext-dom": "*",
-        "avadim/fast-excel-writer": "^6.16",
+        "avadim/fast-excel-writer": "^6.16.1",
         "avadim/fast-excel-reader": "^4.4"
     },
     "require-dev": {

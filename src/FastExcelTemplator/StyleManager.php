@@ -47,7 +47,11 @@ class StyleManager extends \avadim\FastExcelWriter\Style\StyleManager
                                 }
                             }
                         }
-                        $this->loadElement($sectionName, $value);
+                        if ($sectionName !== null) {
+                            // an element outside of any known section has nowhere to go:
+                            // it used to reach loadElement() as null and raise a TypeError
+                            $this->loadElement($sectionName, $value);
+                        }
                     }
                 }
             }

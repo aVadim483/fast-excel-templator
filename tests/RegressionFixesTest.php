@@ -154,4 +154,54 @@ final class RegressionFixesTest extends TestCase
         @unlink($tpl);
         @unlink($out);
     }
+
+    /**
+     * styles.xml may hold an <xf> that does not belong to any of the known sections
+     * (an extension block, a section this reader does not know). Such an element has
+     * nowhere to be stored and used to be passed on as a null section name, which is
+     * a TypeError against the signature of loadElement().
+     */
+    public function testStrayXfOutsideAnySectionDoesNotBreakLoading()
+    {
+        $tpl = __DIR__ . '/test_files/test-strayxf-tpl.xlsx';
+        $out = __DIR__ . '/test_files/test-strayxf-out.xlsx';
+        @unlink($tpl);
+        @unlink($out);
+
+        $writer = Writer::create(['Sheet1']);
+        $writer->sheet()->writeRow(['a', 'b']);
+        $writer->save($tpl);
+
+        // put an <xf> right after <styleSheet>, i.e. before any section has started
+        $styles = $this->zipEntry($tpl, 'xl/styles.xml');
+        $patched = preg_replace('#(<styleSheet[^>]*>)#', '$1<xf numFmtId="0" fontId="0"/>', $styles, 1);
+        self::assertNotSame($styles, $patched, 'the styles.xml of the template was not patched');
+
+        $zip = new \ZipArchive();
+        self::assertTrue($zip->open($tpl) === true);
+        $zip->addFromString('xl/styles.xml', $patched);
+        $zip->close();
+
+        $excel = Excel::template($tpl, $out);
+        $excel->sheet()->transferRows();
+        $excel->save();
+
+        self::assertSame(['A' => 'a', 'B' => 'b'], \avadim\FastExcelReader\Excel::open($out)->readRows()[1]);
+
+        @unlink($tpl);
+        @unlink($out);
+    }
+
+    /**
+     * getValue() answers null for a column the row does not have, in any letter case
+     */
+    public function testGetValueOfAnAbsentCellIsNull()
+    {
+        $row = new RowTemplate();
+        $row->addCell('A', ['v' => 'first']);
+
+        self::assertSame('first', $row->getValue('A'));
+        self::assertSame('first', $row->getValue('a'));
+        self::assertNull($row->getValue('B'));
+    }
 }
