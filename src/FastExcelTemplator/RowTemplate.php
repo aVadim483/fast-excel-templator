@@ -400,11 +400,11 @@ class RowTemplate implements \Iterator
             if (!is_scalar($value)) {
                 throw new Exception('Value for column "' . $colLetter . '" is not scalar');
             }
+            unset($this->cells[$colLetter]['f']);
             $this->cells[$colLetter]['v'] = $value;
         }
-        if (!isset($this->cells[$colLetter]['t'])) {
-            $this->cells[$colLetter]['t'] = '';
-        }
+        // The writer infers the new scalar type; source date/error metadata no longer applies.
+        $this->cells[$colLetter]['t'] = '';
 
         return $this;
     }

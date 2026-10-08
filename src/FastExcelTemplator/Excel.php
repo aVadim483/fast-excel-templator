@@ -290,19 +290,50 @@ class Excel extends ExcelReader
         if (!$fileName) {
             $fileName = $this->excelWriter->getFileName();
         }
-        if (is_file($fileName) && $overWrite) {
-            // a file left in place (locked, read-only, no permission) would make the writer fail
-            // later with a confusing message about the temporary file, so say it here instead
-            if (!@unlink($fileName) && is_file($fileName)) {
-                throw new Exception('Cannot overwrite existing file "' . $fileName . '"');
+        $sourcePath = realpath($this->file);
+        $targetPath = realpath($fileName);
+        if ($sourcePath !== false && $targetPath !== false
+            && (DIRECTORY_SEPARATOR === '\\' ? strcasecmp($sourcePath, $targetPath) === 0 : $sourcePath === $targetPath)) {
+            throw new Exception('Cannot overwrite the template file "' . $fileName . '"');
+        }
+        if (!$overWrite && (file_exists($fileName) || is_link($fileName))) {
+            throw new Exception('Cannot overwrite existing file "' . $fileName . '"');
+        }
+        $directory = realpath(dirname($fileName));
+        if ($directory === false || !is_dir($directory)) {
+            throw new Exception('Output directory does not exist for "' . $fileName . '"');
+        }
+        $temporaryFile = @tempnam($directory, 'fxt-');
+        if ($temporaryFile === false) {
+            throw new Exception('Cannot create temporary output for "' . $fileName . '"');
+        }
+        try {
+            // tempnam() can fall back to the system directory; publishing must stay on one filesystem.
+            if (realpath(dirname($temporaryFile)) !== $directory) {
+                throw new Exception('Cannot create temporary output in "' . $directory . '"');
+            }
+            foreach ($this->sheets as $sheet) {
+                $sheet->saveSheet();
+            }
+            $this->excelWriter->saved = false;
+            if (!$this->excelWriter->replaceSheetsAndSave($this->file, $temporaryFile, $this->styleManager->loaded)) {
+                return false;
+            }
+            $this->excelWriter->saved = false;
+            // rename replaces an existing file without deleting it first. link publishes exclusively,
+            // so overWrite=false also protects a destination created while generation was in progress.
+            $published = $overWrite ? @rename($temporaryFile, $fileName) : @link($temporaryFile, $fileName);
+            if (!$published) {
+                throw new Exception('Cannot write output file "' . $fileName . '"');
+            }
+            $this->excelWriter->saved = true;
+            return true;
+        }
+        finally {
+            if (is_file($temporaryFile)) {
+                @unlink($temporaryFile);
             }
         }
-        foreach ($this->sheets as $sheet) {
-            //$sheet->transferRows();
-            $sheet->saveSheet();
-        }
-
-        return $this->excelWriter->replaceSheetsAndSave($this->file, $fileName, $this->styleManager->loaded);
     }
 
     /**
@@ -366,21 +397,30 @@ class Excel extends ExcelReader
         }
 
         $tmpFile = $this->excelWriter->writer->makeTempFileName(uniqid('xlsx_writer_'));
-        $this->save($tmpFile);
-        if (!$name) {
-            $name = basename($tmpFile) . '.xlsx';
-        }
-        else {
-            $name = basename($name);
-            if (strtolower(pathinfo($name, PATHINFO_EXTENSION)) !== 'xlsx') {
-                $name .= '.xlsx';
+        try {
+            if (!$this->save($tmpFile)) {
+                throw new Exception('Cannot generate download file');
+            }
+            if (!$name) {
+                $name = basename($tmpFile) . '.xlsx';
+            }
+            else {
+                $name = basename($name);
+                if (strtolower(pathinfo($name, PATHINFO_EXTENSION)) !== 'xlsx') {
+                    $name .= '.xlsx';
+                }
+            }
+
+            $this->sendHeaders($this->downloadHeaders($name, (int)filesize($tmpFile)));
+            if (readfile($tmpFile) === false) {
+                throw new Exception('Cannot read generated file "' . $tmpFile . '"');
             }
         }
-
-        $this->sendHeaders($this->downloadHeaders($name, (int)filesize($tmpFile)));
-
-        readfile($tmpFile);
-        unlink($tmpFile);
+        finally {
+            if (is_file($tmpFile)) {
+                @unlink($tmpFile);
+            }
+        }
     }
 
     /**

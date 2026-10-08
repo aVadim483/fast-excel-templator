@@ -7,6 +7,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.1] - 2026-10-08
+
+### Fixed
+- Saving generates a temporary file in the destination directory before publishing the completed workbook. Generation and publication failures preserve existing output; saving over the source template is rejected.
+- `save(..., false)` refuses to overwrite, including a destination created during generation.
+- Archive replacement checks ZIP open, entry write and close results and releases handles on exceptions. A local Writer adapter provides these checks for supported dependency versions.
+- The templator writer no longer auto-saves on destruction. Failed downloads clean up their temporary files.
+- `RowTemplate::setValue()` removes the previous formula and resets source type metadata while preserving styles.
+- Removing cells moves styles and merged ranges to the same target address as the value.
+
+### Tests
+- Regression tests cover safe saving, ZIP failures, download cleanup, formula replacement and styles/merges after cell removal.
+
 ## [3.3.0] - 2026-08-29
 
 ### Fixed

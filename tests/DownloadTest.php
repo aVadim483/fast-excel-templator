@@ -67,6 +67,20 @@ final class DownloadTest extends TestCase
         self::fail('Header "' . $name . '" was not sent: ' . implode(' | ', $headers));
     }
 
+    public function testTemporaryFileIsRemovedWhenSendingHeadersFails(): void
+    {
+        $excel = FailingDownloadExcel::template($this->tpl);
+        $excel->sheet()->transferRows();
+        try {
+            $excel->download('report.xlsx');
+            self::fail('Expected header failure');
+        } catch (\RuntimeException $e) {
+            self::assertSame('header failure', $e->getMessage());
+        }
+        self::assertNotEmpty($excel->generatedFile);
+        self::assertFileDoesNotExist($excel->generatedFile);
+    }
+
     public function testDownloadSendsTheXlsxMimeType()
     {
         [$headers] = $this->capture('download', 'report.xlsx');
@@ -222,5 +236,21 @@ class DownloadTestExcel extends Excel
         }
 
         return parent::headersSent($file, $line);
+    }
+}
+
+class FailingDownloadExcel extends Excel
+{
+    public string $generatedFile = '';
+
+    public function save(?string $fileName = null, ?bool $overWrite = true): bool
+    {
+        $this->generatedFile = $fileName;
+        return parent::save($fileName, $overWrite);
+    }
+
+    protected function sendHeaders(array $headers)
+    {
+        throw new \RuntimeException('header failure');
     }
 }

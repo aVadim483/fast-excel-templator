@@ -698,8 +698,9 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
                             $offsetColIdx++;
                         }
                         else {
-                            $cellAddress = $colLetter . ($targetRowNum - $skippedRows);
-                            $cellAddressIdx = ['row_idx' => $targetRowNum - $skippedRows - 1, 'col_idx' => Helper::colIndex($colLetter) - $offsetColIdx];
+                            $targetColIdx = Helper::colIndex($colLetter) - $offsetColIdx;
+                            $cellAddress = Helper::colLetter($targetColIdx + 1) . ($targetRowNum - $skippedRows);
+                            $cellAddressIdx = ['row_idx' => $targetRowNum - $skippedRows - 1, 'col_idx' => $targetColIdx];
                             $this->_writeWithStyle($cellAddress, $cellAddressIdx, $cellData);
                         }
                     }

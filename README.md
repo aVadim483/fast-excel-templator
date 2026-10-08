@@ -261,6 +261,12 @@ foreach ($excel->sheets() as $sheet) {
 $excel->save();
 ```
 
+## Saving the result
+
+Call `save()` explicitly. The workbook is generated in a temporary file in the destination directory before the completed file replaces the output. Generation or publication failures preserve the previous output. The destination directory must exist and allow file creation.
+
+`save($path, false)` refuses to overwrite even a file created during generation. This mode uses a hard link and requires filesystem support for it. Saving to the source template path is rejected: choose a separate output file. Destroying the object does not automatically save the workbook.
+
 ## Sending the file to the browser
 
 Besides `save()`, you can stream the generated file straight to the client with the correct HTTP headers:
