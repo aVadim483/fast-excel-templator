@@ -295,6 +295,41 @@ class Excel extends ExcelReader
         return $this;
     }
 
+    /** Resolve file symlinks explicitly: Windows realpath() may retain the link's own path. */
+    private function resolveSavePath(string $path): ?string
+    {
+        $visited = [];
+        while (true) {
+            clearstatcache(true, $path);
+            $resolved = realpath($path);
+            if ($resolved === false) {
+                return null;
+            }
+            if (!is_link($resolved)) {
+                return $resolved;
+            }
+            $key = DIRECTORY_SEPARATOR === '\\' ? strtolower($resolved) : $resolved;
+            if (isset($visited[$key]) || count($visited) >= 40) {
+                throw new Exception('Cannot resolve symbolic link "' . $path . '"');
+            }
+            $visited[$key] = true;
+            $target = readlink($resolved);
+            if ($target === false) {
+                throw new Exception('Cannot resolve symbolic link "' . $resolved . '"');
+            }
+            if (DIRECTORY_SEPARATOR === '\\') {
+                $target = str_replace('/', '\\', $target);
+                // A rooted path without a drive is relative to the link's drive.
+                if (substr($target, 0, 1) === '\\' && substr($target, 0, 2) !== '\\\\'
+                    && preg_match('/^[A-Za-z]:/', $resolved)) {
+                    $target = substr($resolved, 0, 2) . $target;
+                }
+            }
+            $path = preg_match('~^(?:[A-Za-z]:[\\\\/]|[\\\\/])~', $target)
+                ? $target : dirname($resolved) . DIRECTORY_SEPARATOR . $target;
+        }
+    }
+
     /**
      * Save XLSX after metadata checks; publish only the completed workbook, preserving the template and an existing destination on failure.
      *
@@ -309,9 +344,9 @@ class Excel extends ExcelReader
         if (!$fileName) {
             $fileName = $this->excelWriter->getFileName();
         }
-        $sourcePath = realpath($this->file);
-        $targetPath = realpath($fileName);
-        if ($sourcePath !== false && $targetPath !== false
+        $sourcePath = $this->resolveSavePath($this->file);
+        $targetPath = $this->resolveSavePath($fileName);
+        if ($sourcePath !== null && $targetPath !== null
             && (DIRECTORY_SEPARATOR === '\\' ? strcasecmp($sourcePath, $targetPath) === 0 : $sourcePath === $targetPath)) {
             throw new Exception('Cannot overwrite the template file "' . $fileName . '"');
         }

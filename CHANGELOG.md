@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- The template overwrite guard explicitly resolves file symlinks with `readlink()`, including link chains: Windows `realpath()` alone is insufficient.
 - `insertRow()` uses a template copy: partial data no longer inherits values from a previous insertion. Collection selection for insertion is independent of `foreach`.
 - `transferRows(0)` and `skipRows(0)` leave cursors unchanged; negative counts and limits throw an exception. Processing up to a sparse-sheet boundary no longer consumes the next existing row.
 - Missing rows in a template range become empty templates; a self-closing XML row no longer takes cells from the following row. Invalid ranges and empty collections produce explicit exceptions.

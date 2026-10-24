@@ -179,9 +179,12 @@ final class SafeSaveTest extends TestCase
         self::assertSame('updated', \avadim\FastExcelReader\Excel::open($this->out)->readRows()[1]['A']);
     }
 
-    public function testSymbolicLinkToTemplateIsRejected(): void
+    /** @dataProvider templateSymlinks */
+    public function testSymbolicLinkToTemplateIsRejected(bool $chain): void
     {
-        if (!@symlink($this->tpl, $this->out)) { self::markTestSkipped('Symbolic links unavailable'); }
+        $link = $chain ? $this->dir . DIRECTORY_SEPARATOR . 'alias.xlsx' : $this->out;
+        if (!@symlink($this->tpl, $link)) { self::markTestSkipped('Symbolic links unavailable'); }
+        if ($chain) { self::assertTrue(symlink($link, $this->out)); }
         $original = file_get_contents($this->tpl);
         self::assertTrue(is_link($this->out));
         self::assertFileExists($this->out, 'The symlink must resolve to the template before saving');
@@ -196,6 +199,11 @@ final class SafeSaveTest extends TestCase
         self::assertTrue(is_link($this->out));
     }
 
+    public static function templateSymlinks(): array
+    {
+        return ['direct' => [false], 'chain' => [true]];
+    }
+
     public function testDanglingSymbolicLinkIsNotOverwrittenInExclusiveMode(): void
     {
         // Windows requires an existing target at symlink creation time.
@@ -205,7 +213,7 @@ final class SafeSaveTest extends TestCase
         unlink($target);
         clearstatcache(true);
         self::assertTrue(is_link($this->out));
-        self::assertFalse(file_exists($this->out));
+        self::assertFileDoesNotExist($target);
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('existing file');
         $this->workbook()->save(null, false);
