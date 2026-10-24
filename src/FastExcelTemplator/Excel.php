@@ -295,24 +295,30 @@ class Excel extends ExcelReader
         return $this;
     }
 
-    /** Resolve file symlinks explicitly: Windows realpath() may retain the link's own path. */
+    /** Resolve links and Windows short-name aliases until the canonical path is stable. */
     private function resolveSavePath(string $path): ?string
     {
         $visited = [];
         while (true) {
+            $key = DIRECTORY_SEPARATOR === '\\' ? strtolower($path) : $path;
+            if (isset($visited[$key]) || count($visited) >= 40) {
+                throw new Exception('Cannot resolve symbolic link "' . $path . '"');
+            }
+            $visited[$key] = true;
             clearstatcache(true, $path);
             $resolved = realpath($path);
             if ($resolved === false) {
                 return null;
             }
+            // A link target may retain RUNNER~1 while a direct path expands to runneradmin.
+            // Resolve the returned target again before comparing paths on Windows.
+            if (DIRECTORY_SEPARATOR === '\\' && strcasecmp($resolved, $path) !== 0) {
+                $path = $resolved;
+                continue;
+            }
             if (!is_link($resolved)) {
                 return $resolved;
             }
-            $key = DIRECTORY_SEPARATOR === '\\' ? strtolower($resolved) : $resolved;
-            if (isset($visited[$key]) || count($visited) >= 40) {
-                throw new Exception('Cannot resolve symbolic link "' . $path . '"');
-            }
-            $visited[$key] = true;
             $target = readlink($resolved);
             if ($target === false) {
                 throw new Exception('Cannot resolve symbolic link "' . $resolved . '"');
