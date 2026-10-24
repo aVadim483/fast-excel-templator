@@ -189,9 +189,26 @@ final class SafeSaveTest extends TestCase
         self::assertTrue(is_link($this->out));
         self::assertFileExists($this->out, 'The symlink must resolve to the template before saving');
         self::assertSame($original, file_get_contents($this->out));
+        $excel = $this->workbook();
+        $resolver = new \ReflectionMethod(Excel::class, 'resolveSavePath');
+        $sourceProperty = new \ReflectionProperty(Excel::class, 'file');
+        if (PHP_VERSION_ID < 80100) {
+            $resolver->setAccessible(true);
+            $sourceProperty->setAccessible(true);
+        }
+        $paths = [
+            'template' => $this->tpl,
+            'output' => $this->out,
+            'readerSource' => $sourceProperty->getValue($excel),
+            'sourceRealpath' => realpath($this->tpl),
+            'targetRealpath' => realpath($this->out),
+            'linkTarget' => readlink($this->out),
+            'resolvedSource' => $resolver->invoke($excel, $sourceProperty->getValue($excel)),
+            'resolvedTarget' => $resolver->invoke($excel, $this->out),
+        ];
         try {
-            $this->workbook()->save();
-            self::fail('Template symlink accepted');
+            $excel->save();
+            self::fail('Template symlink accepted: ' . json_encode($paths, JSON_UNESCAPED_SLASHES));
         } catch (Exception $e) {
             self::assertStringContainsString('template', $e->getMessage());
         }
