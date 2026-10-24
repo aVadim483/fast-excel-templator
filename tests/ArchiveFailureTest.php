@@ -17,47 +17,82 @@ final class ArchiveFailureTest extends TestCase
 
     public function testNumericZipOpenErrorIsRejected(): void
     {
-        $zip = $this->createMock(\ZipArchive::class);
-        $zip->expects(self::once())->method('open')->willReturn(\ZipArchive::ER_NOZIP);
-        $zip->expects(self::never())->method('addFile');
-        $zip->expects(self::never())->method('close');
+        $zip = new FaultArchive();
+        $zip->openResult = \ZipArchive::ER_NOZIP;
         $this->expectException(ExceptionFile::class);
         $this->expectExceptionMessage('Error code');
-        $this->writer($zip)->_replaceStyles('output.xlsx');
+        try { $this->writer($zip)->_replaceStyles('output.xlsx'); }
+        finally {
+            self::assertSame(1, $zip->openCalls);
+            self::assertSame(0, $zip->writeCalls);
+            self::assertSame(0, $zip->closeCalls);
+        }
     }
 
     public function testFailedEntryWriteClosesArchiveAndThrows(): void
     {
-        $zip = $this->createMock(\ZipArchive::class);
-        $zip->method('open')->willReturn(true);
-        $zip->expects(self::once())->method('addFile')->willReturn(false);
-        $zip->expects(self::once())->method('close')->willReturn(true);
+        $zip = new FaultArchive();
+        $zip->writeResult = false;
         $this->expectException(ExceptionFile::class);
         $this->expectExceptionMessage('replace styles');
-        $this->writer($zip)->_replaceStyles('output.xlsx');
+        try { $this->writer($zip)->_replaceStyles('output.xlsx'); }
+        finally {
+            self::assertSame(1, $zip->writeCalls);
+            self::assertSame(1, $zip->closeCalls);
+        }
     }
 
     public function testFailedArchiveCloseIsNotReportedAsSuccess(): void
     {
-        $zip = $this->createMock(\ZipArchive::class);
-        $zip->method('open')->willReturn(true);
-        $zip->method('addFile')->willReturn(true);
-        $zip->expects(self::once())->method('close')->willReturn(false);
+        $zip = new FaultArchive();
+        $zip->closeResult = false;
         $this->expectException(ExceptionFile::class);
         $this->expectExceptionMessage('write zip');
-        $this->writer($zip)->_replaceStyles('output.xlsx');
+        try { $this->writer($zip)->_replaceStyles('output.xlsx'); }
+        finally { self::assertSame(1, $zip->closeCalls); }
     }
 
     public function testExceptionDuringGenerationClosesArchive(): void
     {
-        $zip = $this->createMock(\ZipArchive::class);
-        $zip->method('open')->willReturn(true);
-        $zip->expects(self::once())->method('close')->willReturn(true);
+        $zip = new FaultArchive();
         $writer = $this->writer($zip);
         $writer->failGeneration = true;
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('generation failure');
-        $writer->_replaceStyles('output.xlsx');
+        try { $writer->_replaceStyles('output.xlsx'); }
+        finally { self::assertSame(1, $zip->closeCalls); }
+    }
+}
+
+/** A small I/O fault boundary that does not depend on PHPUnit mocking internal ZIP constants. */
+class FaultArchive extends \ZipArchive
+{
+    public $openResult = true;
+    public bool $writeResult = true;
+    public bool $closeResult = true;
+    public int $openCalls = 0;
+    public int $writeCalls = 0;
+    public int $closeCalls = 0;
+
+    #[\ReturnTypeWillChange]
+    public function open($filename, $flags = 0)
+    {
+        $this->openCalls++;
+        return $this->openResult;
+    }
+
+    #[\ReturnTypeWillChange]
+    public function addFile($filepath, $entryname = '', $start = 0, $length = 0, $flags = 0)
+    {
+        $this->writeCalls++;
+        return $this->writeResult;
+    }
+
+    #[\ReturnTypeWillChange]
+    public function close()
+    {
+        $this->closeCalls++;
+        return $this->closeResult;
     }
 }
 

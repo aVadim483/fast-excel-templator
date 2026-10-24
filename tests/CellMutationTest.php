@@ -70,4 +70,87 @@ final class CellMutationTest extends TestCase
         self::assertSame('B1:C1', $reader->sheet()->mergedRange('B1'));
         self::assertArrayNotHasKey('F1', $cells);
     }
+
+    public function testNullClearsFormulaButKeepsStyle(): void
+    {
+        $writer = Writer::create(['Sheet1']);
+        $writer->sheet()->writeRow(['=1+1'], null, ['A' => ['font-style' => 'bold']]);
+        $writer->save($this->tpl);
+        $excel = Excel::template($this->tpl, $this->out);
+        $excel->sheet()->rows(function ($src, $dst, $row) { return $row->setValue('A', null); });
+        $excel->save();
+        $cells = \avadim\FastExcelReader\Excel::open($this->out)->readCellsWithStyles();
+        self::assertEmpty($cells['A1']['v']);
+        self::assertNotEmpty($cells['A1']['s']['font']['font-style-bold']);
+        $zip = new \ZipArchive();
+        self::assertTrue($zip->open($this->out));
+        $dom = new \DOMDocument();
+        self::assertTrue($dom->loadXML($zip->getFromName('xl/worksheets/sheet1.xml')));
+        $zip->close();
+        self::assertSame(0, $dom->getElementsByTagName('f')->length);
+        self::assertSame(0, $dom->getElementsByTagName('v')->length);
+    }
+
+    public function testScalarCanBecomeFormulaWithoutLosingStyle(): void
+    {
+        $writer = Writer::create(['Sheet1']);
+        $writer->sheet()->writeRow([42], null, ['A' => ['font-style' => 'bold']]);
+        $writer->save($this->tpl);
+        $excel = Excel::template($this->tpl, $this->out);
+        $excel->sheet()->rows(function ($src, $dst, $row) { return $row->setValue('A', '=2+3'); });
+        $excel->save();
+        $zip = new \ZipArchive();
+        self::assertTrue($zip->open($this->out));
+        self::assertStringContainsString('<f>2+3</f>', $zip->getFromName('xl/worksheets/sheet1.xml'));
+        $zip->close();
+        $cells = \avadim\FastExcelReader\Excel::open($this->out)->readCellsWithStyles();
+        self::assertNotEmpty($cells['A1']['s']['font']['font-style-bold']);
+    }
+
+    public function testDeletionInsideHorizontalMergeShrinksItsRange(): void
+    {
+        $writer = Writer::create(['Sheet1']);
+        $writer->sheet()->writeRow(['keep', 'anchor', '', '', 12.5]);
+        $writer->sheet()->mergeCells('B1:D1');
+        $writer->save($this->tpl);
+        $excel = Excel::template($this->tpl, $this->out);
+        $excel->sheet()->rows(function ($src, $dst, $row) { return $row->removeCell('C'); });
+        $excel->save();
+        $reader = \avadim\FastExcelReader\Excel::open($this->out);
+        self::assertSame('B1:C1', $reader->sheet()->mergedRange('B1'));
+        self::assertSame(12.5, $reader->readRows()[1]['D']);
+    }
+
+    public function testSparseFormulaMovesWithRelativeReferencesAndNumberFormat(): void
+    {
+        $writer = Writer::create(['Sheet1']);
+        $writer->sheet()->writeRow(['left', 10, '', '', '=B1'], null, ['E' => ['format' => '0.00']]);
+        $writer->save($this->tpl);
+        $zip = new \ZipArchive();
+        self::assertTrue($zip->open($this->tpl));
+        $xml = preg_replace('/<c\b[^>]*\br="[CD]1"[^>]*>.*?<\/c>/s', '', $zip->getFromName('xl/worksheets/sheet1.xml'));
+        self::assertTrue($zip->addFromString('xl/worksheets/sheet1.xml', $xml));
+        $zip->close();
+        $excel = Excel::template($this->tpl, $this->out);
+        $excel->sheet()->rows(function ($src, $dst, $row) { return $row->removeCell('B'); });
+        $excel->save();
+        self::assertTrue($zip->open($this->out));
+        self::assertStringContainsString('<f>A1</f>', $zip->getFromName('xl/worksheets/sheet1.xml'));
+        $zip->close();
+        $cells = \avadim\FastExcelReader\Excel::open($this->out)->readCellsWithStyles();
+        self::assertSame('0.00', $cells['D1']['s']['format']['format-pattern']);
+    }
+
+    public function testDeletionAffectingMultiRowMergeIsExplicitlyRejected(): void
+    {
+        $writer = Writer::create(['Sheet1']);
+        $writer->sheet()->writeRow(['remove', 'anchor', '']);
+        $writer->sheet()->writeRow(['remove', '', '']);
+        $writer->sheet()->mergeCells('B1:C2');
+        $writer->save($this->tpl);
+        $excel = Excel::template($this->tpl, $this->out);
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('multi-row merged range');
+        $excel->sheet()->rows(function ($src, $dst, $row) { return $row->removeCell('A'); });
+    }
 }

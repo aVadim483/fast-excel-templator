@@ -50,9 +50,10 @@ final class SheetViewTest extends TestCase
         $xml = (string)$zip->getFromName('xl/worksheets/sheet1.xml');
         $zip->close();
 
-        preg_match('#<sheetViews>.*?</sheetViews>#s', $xml, $m);
-
-        return $m[0] ?? '';
+        $dom = new \DOMDocument();
+        self::assertTrue($dom->loadXML($xml));
+        $nodes = $dom->getElementsByTagNameNS('http://schemas.openxmlformats.org/spreadsheetml/2006/main', 'sheetViews');
+        return $nodes->length ? $nodes->item(0)->C14N(true) : '';
     }
 
     public function testFrozenPaneIsTransferred()
@@ -98,7 +99,9 @@ final class SheetViewTest extends TestCase
         $sheetWriter = Excel::template($this->tpl, $this->out)->sheet()->sheetWriter;
 
         $property = new \ReflectionProperty(\avadim\FastExcelWriter\Sheet::class, 'sheetViews');
-        $property->setAccessible(true);
+        if (PHP_VERSION_ID < 80100) {
+            $property->setAccessible(true);
+        }
 
         $before = $property->getValue($sheetWriter);
         $sheetWriter->getSheetViews();

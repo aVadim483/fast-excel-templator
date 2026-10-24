@@ -4,8 +4,6 @@ namespace avadim\FastExcelTemplator;
 
 use avadim\FastExcelHelper\Helper;
 use avadim\FastExcelReader\Interfaces\InterfaceSheetReader;
-use avadim\FastExcelWriter\DataValidation\DataValidation;
-use avadim\FastExcelWriter\Exceptions\ExceptionDataValidation;
 use avadim\FastExcelWriter\Interfaces\InterfaceSheetWriter;
 
 /**
@@ -28,6 +26,7 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     protected int $lastTouchRowNum = 0;
 
     protected ?\Generator $readGenerator = null;
+    protected ?int $readRowLimit = null;
 
     protected array $sortedMergedCells = [];
     protected bool $mergedCellsInit = false;
@@ -36,6 +35,17 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     protected int $rowTemplateNo = 0;
 
     protected bool $postReadDone  = false;
+    protected bool $structureChanged = false;
+
+    /**
+     * Return the conservative structural-operation flag; range remapping is not verified and direct low-level Writer edits are not fully tracked.
+     *
+     * @return bool
+     */
+    public function hasStructuralChanges(): bool
+    {
+        return $this->structureChanged;
+    }
 
 
     /**
@@ -152,13 +162,16 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
                         }
                     }
                     elseif ($xmlReader->name === 'dataValidations') {
-                        $this->_transferDataValidations($xmlReader->expand());
+                        // Kept losslessly by WorksheetMetadata, including vendor extension nodes.
                     }
                     elseif ($xmlReader->name === 'headerFooter') {
                         $options = $xmlReader->getAllAttributes();
+                        foreach (['differentFirst', 'differentOddEven', 'alignWithMargins', 'scaleWithDoc'] as $flag) {
+                            if (isset($options[$flag])) { $options[$flag] = in_array($options[$flag], ['1', 'true'], true); }
+                        }
                         $node = $xmlReader->expand();
                         foreach ($node->childNodes as $child) {
-                            $options[$child->nodeName] = str_replace('&amp;', '&', $child->nodeValue);
+                            if ($child instanceof \DOMElement) { $options[$child->nodeName] = $child->nodeValue; }
                         }
                         $this->sheetWriter->setHeaderFooterOptions($options);
                     }
@@ -172,59 +185,6 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
             }
         }
         $this->postReadDone = true;
-    }
-
-    /**
-     * Transfer the template's <dataValidations> (e.g. dropdown lists) to the output sheet.
-     *
-     * @param \DOMNode|null $node The <dataValidations> element captured from the template
-     *
-     * @return void
-     */
-    private function _transferDataValidations($node): void
-    {
-        if (!$node instanceof \DOMElement) {
-            return;
-        }
-        foreach ($node->childNodes as $dv) {
-            if (!$dv instanceof \DOMElement || $dv->nodeName !== 'dataValidation') {
-                continue;
-            }
-            $type = $dv->getAttribute('type');
-            $sqref = $dv->getAttribute('sqref');
-            // 'type' and 'sqref' are required to rebuild a validation
-            if ($type === '' || $sqref === '') {
-                continue;
-            }
-            try {
-                $validation = DataValidation::make($type);
-                $operator = $dv->getAttribute('operator');
-                if ($operator !== '') {
-                    $validation->setOperator($operator);
-                }
-                foreach ($dv->childNodes as $formula) {
-                    if ($formula->nodeName === 'formula1') {
-                        $validation->setFormula1($formula->nodeValue);
-                    }
-                    elseif ($formula->nodeName === 'formula2') {
-                        $validation->setFormula2($formula->nodeValue);
-                    }
-                }
-                $validation->allowBlank($dv->getAttribute('allowBlank') === '1');
-                // sqref may list several ranges separated by spaces
-                foreach (explode(' ', $sqref) as $range) {
-                    if ($range !== '') {
-                        $this->sheetWriter->addDataValidation($range, $validation);
-                    }
-                }
-            }
-            catch (ExceptionDataValidation $e) {
-                // The template may hold a type, operator or formula this writer cannot express;
-                // skip that single validation rather than break the whole save. Only the writer's
-                // own validation error is caught here, so a genuine bug still surfaces.
-                continue;
-            }
-        }
     }
 
     /**
@@ -259,6 +219,9 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     protected function _cellFormula($node, string $address): string
     {
         $formula = parent::_cellFormula($node, $address);
+        if (method_exists(\avadim\FastExcelReader\Sheet::class, '_makeCellFormula')) {
+            return $formula;
+        }
         // an array formula is based on the top-left cell of its range, not on the current cell
         $ref = (string)$node->getAttribute('ref');
         if (!$ref) {
@@ -266,6 +229,13 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
         }
 
         return FormulaLexer::convertA1toRC($formula, $ref);
+    }
+
+    /** Newer Readers parse streamed cells without invoking the DOM-based _cellFormula(). */
+    protected function _makeCellFormula(string $type, string $si, string $refAttr, ?string $formula, string $address): string
+    {
+        $formula = parent::_makeCellFormula($type, $si, $refAttr, $formula, $address);
+        return FormulaLexer::convertA1toRC($formula, $refAttr !== '' ? $refAttr : $address);
     }
 
     /**
@@ -400,7 +370,7 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
-     * Capture a range of source rows as templates; insertRow() cycles through them (e.g. for zebra striping).
+     * Capture source rows as templates; missing rows become empty templates, and insertRow() cycles independently of foreach.
      *
      * @param int $rowNumberMin First source row of the range
      * @param int $rowNumberMax Last source row of the range
@@ -413,6 +383,9 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
      */
     public function getRowTemplates(int $rowNumberMin, int $rowNumberMax, ?bool $savePointerPosition = false): RowTemplateCollection
     {
+        if ($rowNumberMin < 1 || $rowNumberMax < $rowNumberMin) {
+            throw new Exception('Template row range must be positive and ordered');
+        }
         $findNum = [];
         for ($rowNum = $rowNumberMin; $rowNum <= $rowNumberMax; $rowNum++) {
             if (!isset($this->rowTemplates[$rowNum])) {
@@ -431,7 +404,8 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
                     if (isset($findNum[$r])) {
                         $rowTemplate = (new RowTemplate())->setSheetTemplate($this);
                         $rowTemplate->setAttributes($xmlReader->getAllAttributes());
-                        while ($xmlReader->read() && !($xmlReader->nodeType === \XMLReader::END_ELEMENT && $xmlReader->name === 'row')) {
+                        $emptyRow = $xmlReader->isEmptyElement;
+                        while (!$emptyRow && $xmlReader->read() && !($xmlReader->nodeType === \XMLReader::END_ELEMENT && $xmlReader->name === 'row')) {
                             if ($xmlReader->nodeType === \XMLReader::ELEMENT && $xmlReader->name === 'c') {
                                 $addr = $xmlReader->getAttribute('r');
                                 if ($addr && preg_match('/^([A-Za-z]+)(\d+)$/', $addr, $m)) {
@@ -459,6 +433,11 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
 
         $rows = [];
         for ($rowNum = $rowNumberMin; $rowNum <= $rowNumberMax; $rowNum++) {
+            // A sparse worksheet need not contain an XML row for every position.
+            if (!isset($this->rowTemplates[$rowNum])) {
+                $this->rowTemplates[$rowNum] = (new RowTemplate())->setSheetTemplate($this);
+                $this->rowTemplates[$rowNum]->setAttributes(['r' => $rowNum]);
+            }
             $rows[$rowNum] = clone $this->rowTemplates[$rowNum];
         }
 
@@ -471,7 +450,7 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
-     * Insert a row at the current output position, filling it with data by column letter.
+     * Insert a template copy filled by column letter; omitted columns retain template values, and the template and prior inserts remain unchanged.
      *
      * @param array|RowTemplateCollection|RowTemplate $row A template (or collection to cycle through), or a plain [col => value] array for a blank row
      * @param array|null $cellData Values keyed by column letter, e.g. ['A' => 1, 'B' => 'name']
@@ -488,9 +467,13 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
             $row = new RowTemplate();
         }
         elseif ($row instanceof RowTemplateCollection) {
-            $row = $row->next();
+            $row = $row->nextTemplate();
         }
-        $row->setValues($cellData);
+        if (!$row instanceof RowTemplate) {
+            throw new Exception('A non-empty row template is required');
+        }
+        $row = clone $row;
+        $row->setValues($cellData ?? []);
 
         $rowNumber = $this->sheetWriter->currentRowNum();
         $rowHeight = ($row instanceof RowTemplate) ? $row->attribute('ht') : null;
@@ -518,6 +501,7 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
             }
         }
         $this->countInsertedRows++;
+        $this->structureChanged = true;
         $this->lastTouchRowNum = $rowNumber;
         $this->sheetWriter->nextRow();
 
@@ -572,6 +556,11 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
         // the loop ends when the generator is exhausted, not when its key happens to be falsy
         while ($this->readGenerator->valid()) {
             $rowNum = $this->readGenerator->key();
+            if ($this->readRowLimit !== null && $rowNum > $this->readRowLimit) {
+                // Advance across the gap without consuming the next existing row.
+                $this->lastReadRowNum = max($this->lastReadRowNum, $this->readRowLimit);
+                break;
+            }
             $rowData = $this->readGenerator->current();
             $rowTemplate = (new RowTemplate())->setSheetTemplate($this);
             if (isset($rowData['__row'])) {
@@ -591,6 +580,18 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
         }
 
         return null;
+    }
+
+    /** Apply a temporary bound without changing readRow()'s public extension contract. */
+    protected function readRowsUntil(?int $maxRowNum): \Generator
+    {
+        $previousLimit = $this->readRowLimit;
+        $this->readRowLimit = $maxRowNum;
+        try {
+            yield from $this->readRow();
+        } finally {
+            $this->readRowLimit = $previousLimit;
+        }
     }
 
     /**
@@ -657,19 +658,58 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
         }
     }
 
+    /** Adjust horizontal merges for this row's removals; partial vertical shifts are unsafe. */
+    private function cellsAfterRemoval(RowTemplate $row, int $sourceRow): array
+    {
+        $cells = $row->cells();
+        $removed = [];
+        foreach ($cells as $column => $cell) {
+            if (!empty($cell['__removed'])) { $removed[] = Helper::colNumber($column); }
+        }
+        if (!$removed) { return $cells; }
+        foreach ($this->getMergedCells() as $range) {
+            $bounds = Helper::rangeArray($range);
+            if ($bounds['min_row_num'] !== $bounds['max_row_num']
+                && $sourceRow >= $bounds['min_row_num'] && $sourceRow <= $bounds['max_row_num']) {
+                foreach ($removed as $column) {
+                    if ($column <= $bounds['max_col_num']) {
+                        throw new Exception('Cannot remove cells affecting a multi-row merged range: ' . $range);
+                    }
+                }
+            }
+        }
+        foreach ($cells as $column => &$cell) {
+            if (empty($cell['__removed']) && isset($cell['__merged'])) {
+                $bounds = Helper::rangeArray(Helper::addToRange($column . $sourceRow, $cell['__merged']));
+                $width = $bounds['max_col_num'] - $bounds['min_col_num'];
+                foreach ($removed as $removedColumn) {
+                    if ($removedColumn > $bounds['min_col_num'] && $removedColumn <= $bounds['max_col_num']) { $width--; }
+                }
+                $height = $bounds['max_row_num'] - $bounds['min_row_num'];
+                if ($width === 0 && $height === 0) { unset($cell['__merged']); }
+                else { $cell['__merged'] = 'R0C0:R' . $height . 'C' . $width; }
+            }
+        }
+        unset($cell);
+        return $cells;
+    }
+
     /**
      * Copy source rows to the output up to $maxRowNum; an optional callback can modify, skip or stop each row.
      *
-     * @param int|null $maxRowNum Last source row to transfer; null transfers to the end
+     * @param int|null $maxRowNum Inclusive source boundary; null means to EOF, zero is a no-op, negative values throw Exception
      * @param callable|null $callback function($sourceRowNum, $targetRowNum, RowTemplate $row): return $row to write it, null to skip the row, false to stop
      *
      * @return SheetTemplate
      */
     public function transferRowsUntil(?int $maxRowNum = null, $callback = null): SheetTemplate
     {
+        if ($maxRowNum !== null && $maxRowNum < 0) {
+            throw new Exception('Row limit cannot be negative');
+        }
         $skippedRows = 0;
         if ($maxRowNum === null || $maxRowNum > $this->lastReadRowNum) {
-            foreach ($this->readRow() as $sourceRowNum => $rowData) {
+            foreach ($this->readRowsUntil($maxRowNum) as $sourceRowNum => $rowData) {
                 if (!$maxRowNum || $sourceRowNum <= $maxRowNum) {
                     $targetRowNum = $this->sheetWriter->currentRowNum();
                     if ($targetRowNum < $sourceRowNum) {
@@ -678,6 +718,7 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
                     if ($callback) {
                         $res = $callback($sourceRowNum, $targetRowNum - $skippedRows, $rowData);
                         if ($res === null) {
+                            $this->structureChanged = true;
                             $skippedRows++;
                             continue;
                         }
@@ -689,12 +730,16 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
                         }
                     }
                     $this->sheetWriter->setRowAttributes($targetRowNum - $skippedRows, $rowData->getAttributes());
+                    if ($targetRowNum - $skippedRows !== $sourceRowNum) {
+                        $this->structureChanged = true;
+                    }
                     if ($height = $rowData->rowHeight()) {
                         $this->sheetWriter->setRowHeight($targetRowNum - $skippedRows, $height);
                     }
                     $offsetColIdx = 0;
-                    foreach ($rowData->cells() as $colLetter => $cellData) {
+                    foreach ($this->cellsAfterRemoval($rowData, $sourceRowNum) as $colLetter => $cellData) {
                         if (!empty($cellData['__removed'])) {
+                            $this->structureChanged = true;
                             $offsetColIdx++;
                         }
                         else {
@@ -724,14 +769,20 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     /**
      * Copy the next $countRows source rows (or all remaining if null) to the output, with an optional callback.
      *
-     * @param int|null $countRows Number of rows to transfer; null transfers all remaining rows
+     * @param int|null $countRows Source row positions to transfer; null means to EOF, zero is a no-op, negative counts throw Exception
      * @param callable|null $callback function($sourceRowNum, $targetRowNum, RowTemplate $row): return $row to write it, null to skip the row, false to stop
      *
      * @return SheetTemplate
      */
     public function transferRows(?int $countRows = null, $callback = null): SheetTemplate
     {
-        return $this->transferRowsUntil($countRows ? ($this->lastReadRowNum + $countRows) : null, $callback);
+        if ($countRows !== null && $countRows < 0) {
+            throw new Exception('Row count cannot be negative');
+        }
+        if ($countRows === 0) {
+            return $this;
+        }
+        return $this->transferRowsUntil($countRows !== null ? ($this->lastReadRowNum + $countRows) : null, $callback);
     }
 
     /**
@@ -754,16 +805,20 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     }
 
     /**
-     * Skip rows from the template
+     * Advance through an inclusive source boundary without writing; later existing rows in a sparse sheet remain available.
      *
-     * @param int|null $maxRowNum Max row of template
+     * @param int|null $maxRowNum Inclusive source boundary; null means to EOF, zero is a no-op, negative values throw Exception
      *
      * @return SheetTemplate
      */
     public function skipRowsUntil(?int $maxRowNum = null): SheetTemplate
     {
+        if ($maxRowNum !== null && $maxRowNum < 0) {
+            throw new Exception('Row limit cannot be negative');
+        }
         if ($maxRowNum === null || $maxRowNum > $this->lastReadRowNum) {
-            foreach ($this->readRow() as $rowNum => $rowData) {
+            foreach ($this->readRowsUntil($maxRowNum) as $rowNum => $rowData) {
+                $this->structureChanged = true;
                 if ($maxRowNum !== null && !empty($rowNum) && ($rowNum >= $maxRowNum)) {
                     break;
                 }
@@ -776,13 +831,19 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     /**
      * Skip rows from the template
      *
-     * @param int|null $countRows Number of rows
+     * @param int|null $countRows Source row positions to skip; null means to EOF, zero is a no-op, negative counts throw Exception
      *
      * @return SheetTemplate
      */
     public function skipRows(?int $countRows = null): SheetTemplate
     {
-        return $this->skipRowsUntil($countRows ? ($this->lastReadRowNum + $countRows) : null);
+        if ($countRows !== null && $countRows < 0) {
+            throw new Exception('Row count cannot be negative');
+        }
+        if ($countRows === 0) {
+            return $this;
+        }
+        return $this->skipRowsUntil($countRows !== null ? ($this->lastReadRowNum + $countRows) : null);
     }
 
     /**

@@ -12,6 +12,20 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
 
     protected array $replace = [];
 
+    protected string $templatePath = '';
+
+    /** @internal Original worksheet part, independent of writer creation order. */
+    public function setTemplatePath(string $path): void
+    {
+        $this->templatePath = $path;
+    }
+
+    /** @internal */
+    public function templatePath(): string
+    {
+        return $this->templatePath;
+    }
+
 
     /**
      * Set sheet views attributes

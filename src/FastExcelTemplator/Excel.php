@@ -9,6 +9,7 @@ use \avadim\FastExcelReader\Excel as ExcelReader;
  * Class Excel
  *
  * @package avadim\FastExcelTemplator
+ * @phpstan-consistent-constructor
  */
 class Excel extends ExcelReader
 {
@@ -59,6 +60,7 @@ class Excel extends ExcelReader
             $this->outputFile = $outputFile;
         }
         $this->_importSheets();
+        $this->excelWriter->setTemplateSheets($this->sheets);
     }
 
     /**
@@ -80,15 +82,29 @@ class Excel extends ExcelReader
     }
 
     /**
+     * Return sheet/code/message diagnostics from the latest archive generation, including strict rejections; preliminary path errors do not refresh the report.
+     *
+     * @return array Diagnostic entries; an empty array means no metadata limitation was reported
+     */
+    public function metadataDiagnostics(): array
+    {
+        return $this->excelWriter->metadataDiagnostics();
+    }
+
+    /**
      * @return void
      */
     protected function _importSheets()
     {
         foreach ($this->sheets as $sheetId => $sheet) {
             $sheet->sheetWriter = $this->excelWriter->makeSheet($sheet->name());
+            $sheet->sheetWriter->setTemplatePath($sheet->path());
             $this->xmlReader->openZip($sheet->path());
             $sheetViewsAttributes = [];
             while ($this->xmlReader->read()) {
+                if ($this->xmlReader->nodeType === \XMLReader::ELEMENT && $this->xmlReader->name === 'sheetData') {
+                    break;
+                }
                 if ($this->xmlReader->nodeType === \XMLReader::ELEMENT && $this->xmlReader->name === 'sheetView') {
                     // <sheetView tabSelected="1" view="pageBreakPreview" zoomScaleNormal="100" zoomScaleSheetLayoutView="100" workbookViewId="0">
                     $attributes = $this->xmlReader->getAllAttributes();
@@ -161,9 +177,11 @@ class Excel extends ExcelReader
     }
 
     /**
-     * @param string $templateFile
-     * @param string|null $outputFile
-     * @param array|null $options
+     * Open an XLSX template and create its output writer.
+     *
+     * @param string $templateFile Existing XLSX template
+     * @param string|null $outputFile Output path; may also be supplied to save()
+     * @param array|null $options Writer options; strict_metadata (bool, default false) rejects detected unsupported metadata transformations at save time
      *
      * @return Excel
      */
@@ -278,12 +296,13 @@ class Excel extends ExcelReader
     }
 
     /**
-     * Save generated XLSX-file
+     * Save XLSX after metadata checks; publish only the completed workbook, preserving the template and an existing destination on failure.
      *
-     * @param string|null $fileName
-     * @param bool|null $overWrite
+     * @param string|null $fileName Output path; null uses the configured writer filename
+     * @param bool|null $overWrite False refuses existing destinations, including files created during generation
      *
      * @return bool
+     * @throws Exception On invalid output paths, publication failure or a strict metadata rejection
      */
     public function save(?string $fileName = null, ?bool $overWrite = true): bool
     {

@@ -6,3 +6,5 @@ tests/*.vbs
 tests/demo1-out.xlsx
 tests/test_files/*-out.xlsx
 tests/test_files/*-tpl.xlsx
+# PHPStan cache
+/.phpstan-cache/

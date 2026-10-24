@@ -6,9 +6,27 @@ use avadim\FastExcelWriter\Exceptions\ExceptionFile;
 
 class ExcelWriter extends \avadim\FastExcelWriter\Excel
 {
+    /** @var SheetTemplate[] */
+    protected array $templateSheets = [];
+    protected bool $strictMetadata = false;
+    protected array $metadataDiagnostics = [];
+
+    /** @internal */
+    public function setTemplateSheets(array $sheets): void
+    {
+        $this->templateSheets = $sheets;
+    }
+
+    public function metadataDiagnostics(): array
+    {
+        return $this->metadataDiagnostics;
+    }
+
     public function __construct($options = null)
     {
         $options = $options ?? [];
+        $this->strictMetadata = (bool)($options['strict_metadata'] ?? false);
+        unset($options['strict_metadata']);
         $options['writer_class'] = $options['writer_class'] ?? TemplateWriter::class;
         parent::__construct($options);
     }
@@ -59,6 +77,7 @@ class ExcelWriter extends \avadim\FastExcelWriter\Excel
         ];
 
         $this->saved = false;
+        $this->metadataDiagnostics = [];
         if (!$this->writer->_replaceSheets($inputFile, $outputFile, $relationShips)) {
             return false;
         }
@@ -71,7 +90,27 @@ class ExcelWriter extends \avadim\FastExcelWriter\Excel
             ExceptionFile::throwNew('Unable to open zip "%s". Error code "%s"', $outputFile, $result);
         }
         $completed = false;
+        $temporaryFiles = [];
+        $metadata = new WorksheetMetadata($this->strictMetadata);
         try {
+            if ($replaceStyles) {
+                $original = new \ZipArchive();
+                if ($original->open($inputFile) !== true) { throw new Exception('Cannot read template style metadata'); }
+                try { $sourceStyles = $original->getFromName('xl/styles.xml'); }
+                finally { $original->close(); }
+                $generatedStyles = $zip->getFromName('xl/styles.xml');
+                if ($sourceStyles === false || $generatedStyles === false
+                    || !$zip->addFromString('xl/styles.xml', WorksheetMetadata::preserveStyleMetadata($sourceStyles, $generatedStyles))) {
+                    throw new Exception('Cannot preserve style metadata');
+                }
+            }
+            foreach ($this->templateSheets as $sheet) {
+                $temporary = $metadata->rewrite($inputFile, $outputFile, $sheet->path(), $sheet->hasStructuralChanges(), dirname($outputFile));
+                $temporaryFiles[] = $temporary;
+                if (!$zip->addFile($temporary, $sheet->path())) {
+                    ExceptionFile::throwNew('Unable to preserve metadata for "%s"', $sheet->path());
+                }
+            }
             if ($zip->statName('xl/calcChain.xml') !== false) {
                 if (!$zip->deleteName('xl/calcChain.xml')) {
                     ExceptionFile::throwNew('Unable to remove calculation chain from "%s"', $outputFile);
@@ -90,7 +129,11 @@ class ExcelWriter extends \avadim\FastExcelWriter\Excel
             $completed = true;
         }
         finally {
-            $closed = $zip->close();
+            $this->metadataDiagnostics = $metadata->diagnostics();
+            try { $closed = $zip->close(); }
+            finally {
+                foreach ($temporaryFiles as $temporary) { @unlink($temporary); }
+            }
             if ($completed && !$closed) {
                 ExceptionFile::throwNew('Unable to write zip "%s"', $outputFile);
             }

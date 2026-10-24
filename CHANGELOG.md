@@ -7,6 +7,32 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- `insertRow()` uses a template copy: partial data no longer inherits values from a previous insertion. Collection selection for insertion is independent of `foreach`.
+- `transferRows(0)` and `skipRows(0)` leave cursors unchanged; negative counts and limits throw an exception. Processing up to a sparse-sheet boundary no longer consumes the next existing row.
+- Missing rows in a template range become empty templates; a self-closing XML row no longer takes cells from the following row. Invalid ranges and empty collections produce explicit exceptions.
+- A separate streaming pass preserves worksheet metadata: conditional rules, complete validation attributes/children, hyperlinks, tables, drawing/comment references, views and extensions. Differential styles are loaded correctly; palettes, table styles and style extensions survive.
+- The streaming path in newer Readers now rebases moved formulas. Horizontal merges shrink when interior cells are removed; removals affecting multi-row merges are rejected.
+- `setValue(..., null)` clears cell content and the old formula while retaining formatting. Header/footer XML false flags and escaped text are handled correctly.
+- Generated sheets are mapped to their original XML parts even when workbook order differs from worksheet part numbering.
+
+### Added
+- `strict_metadata` and `metadataDiagnostics()`: unsupported range transformations and unknown elements produce diagnostics; strict mode rejects saving before publication.
+- Bilingual XLSX support matrices and fixtures created by Excel and LibreOffice.
+- Windows/Ubuntu CI for PHP 7.4, 8.0–8.5, separate lowest-dependency jobs on PHP 7.4, and PHPStan level 1 without baseline entries or suppressed errors (`composer analyse`).
+
+### Tests
+- Added metadata, ZIP relationships, images, notes, filesystem links, null clearing, sparse rows, merge and Office fixture checks.
+
+### Documentation
+- README and API reference now describe independent insertions, cursor rules and cell clearing. The support matrix documents diagnostic codes, strict rejection handling and structural limitations.
+
+### Compatibility
+- Callers relying on insertion mutating a template, or sharing an insertion cursor with `next()`/`foreach`, must supply values and select templates explicitly. Public `next()` behavior is preserved; independent `nextTemplate()` selection was added.
+- Metadata ranges and drawing anchors retain template coordinates after structural changes. Strict mode conservatively rejects these operations; see XLSX_SUPPORT.md.
+
 ## [3.3.1] - 2026-10-08
 
 ### Fixed

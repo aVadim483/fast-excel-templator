@@ -15,7 +15,7 @@
 * [openString()](#openstring) – Open a spreadsheet held in a string, choosing the reader by its signature
 * [openXls()](#openxls) – Open an XLS (Excel 97-2003, BIFF8) file
 * [setTempDir()](#settempdir) – Set dir for temporary files
-* [template()](#template)
+* [template()](#template) – Open an XLSX template and create its output writer.
 * [validate()](#validate) – Validate XLSX file
 * [countExtraImages()](#countextraimages) – Count "extra" images (images that are in the media folder but not in the drawings)
 * [countImages()](#countimages) – Returns the total count of images in the workbook
@@ -43,6 +43,7 @@
 * [hiddenSheets()](#hiddensheets) – Array of hidden sheets only
 * [innerFileList()](#innerfilelist) – Get list of inner files in XLSX
 * [mediaImageFiles()](#mediaimagefiles) – Get list of media image files in the workbook
+* [metadataDiagnostics()](#metadatadiagnostics) – Return sheet/code/message diagnostics from the latest archive generation, including strict rejections; preliminary path errors do not refresh the report.
 * [metadataImage()](#metadataimage) – Get image file name from metadata by index
 * [output()](#output) – Alias of download()
 * [outputFile()](#outputfile) – Name of the output file, or an empty string if it was not specified yet
@@ -56,7 +57,7 @@
 * [readRowsWithStyles()](#readrowswithstyles) – Returns cell values and styles as a two-dimensional array from default sheet [row][col]
 * [readStyles()](#readstyles) – Read all workbook styles
 * [replace()](#replace) – Set replacements of any occurring substrings
-* [save()](#save) – Save generated XLSX-file
+* [save()](#save) – Save XLSX after metadata checks; publish only the completed workbook, preserving the template and an existing destination on failure.
 * [selectFirstSheet()](#selectfirstsheet) – Selects the first sheet as default
 * [selectSheet()](#selectsheet) – Selects default sheet by name
 * [selectSheetById()](#selectsheetbyid) – Selects default sheet by ID
@@ -297,13 +298,13 @@ public static function template(string $templateFile,
                                 ?string $outputFile = null, 
                                 ?array $options = []): Excel
 ```
-
+_Open an XLSX template and create its output writer._
 
 ### Parameters
 
-* `string $templateFile`
-* `string|null $outputFile`
-* `array|null $options`
+* `string $templateFile` – Existing XLSX template
+* `string|null $outputFile` – Output path; may also be supplied to save()
+* `array|null $options` – Writer options; strict_metadata (bool, default false) rejects detected unsupported metadata transformations at save time
 
 ---
 
@@ -727,6 +728,21 @@ _None_
 
 ---
 
+## metadataDiagnostics()
+
+---
+
+```php
+public function metadataDiagnostics(): array
+```
+_Return sheet/code/message diagnostics from the latest archive generation, including strict rejections; preliminary path errors do not refresh the report._
+
+### Parameters
+
+_None_
+
+---
+
 ## metadataImage()
 
 ---
@@ -940,12 +956,12 @@ _Set replacements of any occurring substrings_
 ```php
 public function save(?string $fileName = null, ?bool $overWrite = true): bool
 ```
-_Save generated XLSX-file_
+_Save XLSX after metadata checks; publish only the completed workbook, preserving the template and an existing destination on failure._
 
 ### Parameters
 
-* `string|null $fileName`
-* `bool|null $overWrite`
+* `string|null $fileName` – Output path; null uses the configured writer filename
+* `bool|null $overWrite` – False refuses existing destinations, including files created during generation
 
 ---
 

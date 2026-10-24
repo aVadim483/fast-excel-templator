@@ -179,4 +179,24 @@ final class MultiSheetTest extends TestCase
         self::assertCount(3, $reader->sheet('Alpha')->readRows());
         self::assertSame([], $reader->sheet('Beta')->readRows());
     }
+
+    public function testWorkbookOrderCanDifferFromWorksheetPartNumbers(): void
+    {
+        $this->makeTemplate();
+        $zip = new \ZipArchive();
+        self::assertTrue($zip->open($this->tpl));
+        $dom = new \DOMDocument();
+        self::assertTrue($dom->loadXML($zip->getFromName('xl/workbook.xml')));
+        $sheets = $dom->getElementsByTagName('sheets')->item(0);
+        $first = $sheets->getElementsByTagName('sheet')->item(0);
+        $sheets->appendChild($first);
+        self::assertTrue($zip->addFromString('xl/workbook.xml', $dom->saveXML()));
+        $zip->close();
+        $excel = Excel::template($this->tpl, $this->out);
+        $excel->sheet('Beta')->transferRows();
+        $excel->sheet('Alpha')->transferRows();
+        $excel->save();
+        self::assertSame('a1', $this->outputRows('Alpha')[2]['A']);
+        self::assertSame('b1', $this->outputRows('Beta')[2]['A']);
+    }
 }

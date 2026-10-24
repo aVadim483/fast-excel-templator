@@ -155,6 +155,50 @@ final class SafeSaveTest extends TestCase
         $writer->__destruct();
         self::assertFileDoesNotExist($this->out);
     }
+
+    public function testCaseAliasOfTemplateIsRejectedOnWindows(): void
+    {
+        if (DIRECTORY_SEPARATOR !== '\\') { self::markTestSkipped('Case-insensitive Windows paths'); }
+        $original = file_get_contents($this->tpl);
+        $excel = $this->workbook();
+        try {
+            $excel->save(strtoupper($this->tpl));
+            self::fail('Template alias accepted');
+        } catch (Exception $e) {
+            self::assertStringContainsString('template', $e->getMessage());
+        }
+        self::assertSame($original, file_get_contents($this->tpl));
+    }
+
+    public function testReplacingHardLinkDoesNotChangeTemplate(): void
+    {
+        if (!@link($this->tpl, $this->out)) { self::markTestSkipped('Hard links unavailable'); }
+        $original = file_get_contents($this->tpl);
+        self::assertTrue($this->workbook()->save());
+        self::assertSame($original, file_get_contents($this->tpl));
+        self::assertSame('updated', \avadim\FastExcelReader\Excel::open($this->out)->readRows()[1]['A']);
+    }
+
+    public function testSymbolicLinkToTemplateIsRejected(): void
+    {
+        if (!@symlink($this->tpl, $this->out)) { self::markTestSkipped('Symbolic links unavailable'); }
+        $original = file_get_contents($this->tpl);
+        try {
+            $this->workbook()->save();
+            self::fail('Template symlink accepted');
+        } catch (Exception $e) {
+            self::assertStringContainsString('template', $e->getMessage());
+        }
+        self::assertSame($original, file_get_contents($this->tpl));
+    }
+
+    public function testDanglingSymbolicLinkIsNotOverwrittenInExclusiveMode(): void
+    {
+        if (!@symlink($this->dir . '/missing.xlsx', $this->out)) { self::markTestSkipped('Symbolic links unavailable'); }
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('existing file');
+        $this->workbook()->save(null, false);
+    }
 }
 
 class FailingSaveWriter extends \avadim\FastExcelWriter\Writer\Writer

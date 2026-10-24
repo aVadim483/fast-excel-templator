@@ -15,48 +15,53 @@ class StyleManager extends \avadim\FastExcelWriter\Style\StyleManager
      */
     public function loadStyles()
     {
-        if (!$this->loaded) {
-            $this->elements = [];
-            $reader = new Reader($this->excelTemplator->templateFile());
+        if ($this->loaded) {
+            return;
+        }
+        $this->elements = [];
+        $reader = new Reader($this->excelTemplator->templateFile());
+        $sectionName = null;
+        $sections = ['numFmts', 'fonts', 'fills', 'borders', 'cellStyleXfs', 'cellXfs', 'cellStyles', 'dxfs', 'tableStyles'];
+        try {
             $reader->openZip('xl/styles.xml');
-            $sectionName = null;
             while ($reader->read()) {
-                if ($reader->nodeType === \XMLReader::ELEMENT) {
-                    if (in_array($reader->name, ['numFmts', 'fonts', 'fills', 'borders', 'cellStyleXfs', 'cellXfs', 'cellStyles', 'dxfs', 'tableStyles'])) {
-                        $sectionName = $reader->name;
-                        continue;
+                if ($reader->depth === 1) {
+                    $sectionName = $reader->nodeType === \XMLReader::ELEMENT && in_array($reader->name, $sections, true)
+                        ? $reader->name : null;
+                    continue;
+                }
+                if ($reader->nodeType !== \XMLReader::ELEMENT || $reader->depth !== 2 || $sectionName === null) {
+                    continue;
+                }
+                $name = $reader->name;
+                if (!in_array($name, ['numFmt', 'font', 'fill', 'border', 'xf', 'cellStyle', 'dxf', 'tableStyle'], true)) {
+                    continue;
+                }
+                $tag = str_replace(' xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"', '', $reader->readOuterXml());
+                $value = $name === 'dxf' ? $tag : ['tag' => $tag];
+                if (in_array($name, ['xf', 'cellStyle', 'tableStyle', 'numFmt'], true)) {
+                    foreach ($reader->getAllAttributes() as $attrName => $attrValue) {
+                        $attrName = '_' . strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $attrName));
+                        $value[$attrName] = $attrValue;
                     }
-                    if (in_array($name = $reader->name, ['numFmt', 'font', 'fill', 'border', 'xf', 'cellStyle'])) {
-                        $tag = $reader->readOuterXml();
-                        $tag = str_replace(' xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"', '', $tag);
-                        $value = ['tag' => $tag];
-                        if ($name === 'xf' || $name === 'cellStyle' || $name === 'tableStyle' || $name === 'numFmt') {
-                            foreach ($reader->getAllAttributes() as $attrName => $attrValue) {
-                                // camelCase to snake_case
-                                $attrName = '_' . strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $attrName));
-                                $value[$attrName] = $attrValue;
-                            }
-                            $node = $reader->expand();
-                            if ($node->hasChildNodes()) {
-                                foreach ($node->childNodes as $child) {
-                                    $name = $child->nodeName;
-                                    foreach ($child->attributes as $key => $val) {
-                                        $attrName = $name . '-' . strtolower(preg_replace('/(?<!^)[A-Z]/', '-$0', $key));
-                                        $value[$attrName] = $val;
-                                    }
-                                }
-                            }
+                    foreach ($reader->expand()->childNodes as $child) {
+                        if (!$child instanceof \DOMElement) {
+                            continue;
                         }
-                        if ($sectionName !== null) {
-                            // an element outside of any known section has nowhere to go:
-                            // it used to reach loadElement() as null and raise a TypeError
-                            $this->loadElement($sectionName, $value);
+                        foreach ($child->attributes as $key => $val) {
+                            $attrName = $child->nodeName . '-' . strtolower(preg_replace('/(?<!^)[A-Z]/', '-$0', $key));
+                            $value[$attrName] = $val;
                         }
                     }
                 }
+                // Only direct children of known sections are loaded: fonts inside dxf
+                // must not become ordinary fonts, and each original index must survive.
+                $this->loadElement($sectionName, $value);
             }
-            $this->loaded = true;
+        } finally {
+            $reader->close();
         }
+        $this->loaded = true;
     }
 
     /**

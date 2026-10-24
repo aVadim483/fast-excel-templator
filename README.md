@@ -50,21 +50,22 @@ composer require avadim/fast-excel-templator
 ### Requirements
 
 * PHP >= 7.4 with the `zip`, `json`, `mbstring`, `xmlreader` and `dom` extensions.
-* Composer pulls the sibling packages automatically. The current 2.x line depends on:
+* Composer pulls the sibling packages automatically. The current 3.x line depends on:
 
   | Package | Constraint |
   |---|---|
-  | `avadim/fast-excel-reader` | `^4.0` |
-  | `avadim/fast-excel-writer` | `^6.15` |
-  | `avadim/fast-excel-helper` | `^1.3` |
+  | `avadim/fast-excel-reader` | `^4.4` |
+  | `avadim/fast-excel-writer` | `^6.16.1` |
+
+  `avadim/fast-excel-helper` is installed transitively through these packages.
 
 ## How it works
 
 Understanding the design explains both what the library does effortlessly and where its limits are.
 
-* **Streaming, not an object model.** FastExcelTemplator reads the template through an XML reader and re-emits it through an XML writer, one row at a time, from top to bottom. It never loads the whole sheet into memory, so memory usage stays roughly flat regardless of how many rows you insert.
-* **The output is a copy of your template.** On save, the library takes the original template file and splices only the re-written sheets back into it. Everything you did not touch — images, notes, drawings, merged cells, print setup, frozen panes, autofilters — is carried over untouched. That is why formatting is preserved "for free": it is literally the same file.
-* **Forward-only.** Because reading and writing advance together in a single pass, you cannot go back and change a row that has already been written. You walk the template once.
+* **Streaming.** Sheet data is read and written one row at a time, without loading the entire sheet into memory. Memory usage also depends on styles, metadata and the number of captured row templates.
+* **The output is assembled from your template.** The library replaces sheet data and retains original archive parts and metadata, including images, notes, conditional formatting and validation rules. Metadata ranges are not automatically remapped when rows are inserted or removed; see the [XLSX support matrix](XLSX_SUPPORT.md).
+* **Forward-only output.** A row cannot be changed after it has been written. Template capture and metadata preservation use separate reads of the template without loading the entire sheet.
 * **Formulas are transferred, not evaluated.** The library writes the formula text and does not compute its result — Excel does that when the file is opened. When a captured row template is re-inserted at another row, its formulas are re-based automatically (A1 references shift to the target row), so a `=C7*D7` in the template row becomes `=C8*D8`, `=C9*D9`, and so on.
 
 ## Templates Usage
@@ -80,6 +81,8 @@ From this template you can get a file like this
 **Step 1** - open template and set replacements
 ```php
 // Open template and set output file
+use avadim\FastExcelTemplator\Excel;
+
 $excel = Excel::template($tpl, $out);
 // Get the first sheet
 $sheet = $excel->sheet();
@@ -223,12 +226,16 @@ If you need to remove cells, use the ```removeCells()```.
 
 ```php
 $sheet->rows(function ($sourceRowNum, $targetRowNum, $rowData) {
-    // Clone the cell 'A' to the cell 'E' and assign it the SUM()
+    // Remove cells B and D from this row, shifting the remaining cells left
     $rowData->removeCells(['B', 'D']);
 
     return $rowData;
 });
 ```
+
+`removeCell()` and `removeCells()` affect the current row, not the workbook's column structure. Values, styles and horizontal merges move together; an interior removal shrinks a horizontal merge. Removals affecting multi-row merges throw an exception. See the [reference semantics](XLSX_SUPPORT.md#values-links-and-development).
+
+Use `$rowData->setValue('B', null)` to clear content and the previous formula while retaining formatting. Zero, `false` and the empty string remain distinct valid values. Strings starting with `=` are written as formulas.
 
 ## Repeating rows and alternating styles
 
@@ -246,6 +253,31 @@ foreach ($allData as $record) {
 
 Both methods return a `RowTemplateCollection`; `insertRow()` takes the next template from it on each call and wraps around at the end.
 
+Each insertion uses a copy of its template. Columns omitted from `$cellData` retain the template's values and formulas; they do not inherit values from the previous insertion. The template is unchanged. The insertion cycle is independent of `foreach` over the collection. Missing rows within a valid template range become empty templates.
+
+```php
+$template = $sheet->getRowTemplate(7);
+$sheet->insertRow($template, ['A' => 1, 'B' => 'First value']);
+$sheet->insertRow($template, ['A' => 2]); // B comes from template row 7
+```
+
+Capturing templates advances the main read cursor to the requested range end by default. Pass `true` as the last argument — `getRowTemplate(7, true)` or `getRowTemplates(7, 8, true)` — to retain its position. Ranges must be positive and ordered; when `dimension` is present, its bounds are checked. An empty collection cannot be inserted.
+
+`nextTemplate()` selects from the same cycle used by `insertRow()`, independently of `foreach`, `next()` and `rewind()`. Adding or deleting a template restarts the insertion cycle. Public `next()` retains its legacy cyclic behavior.
+
+## Transferring and skipping rows
+
+| Method | Source positions processed | Result |
+|---|---|---|
+| `transferRows($count)` | Next `$count` positions | Copy rows to output |
+| `skipRows($count)` | Next `$count` positions | Advance without writing |
+| `transferRowsUntil($row)` | Through source row `$row`, inclusive | Copy rows to output |
+| `skipRowsUntil($row)` | Through source row `$row`, inclusive | Advance without writing |
+
+`null` processes to EOF, `0` does nothing, and negative values throw an exception. Empty positions in sparse sheets count toward the limit. `Until` methods do not consume a later existing row beyond the boundary. Repeated EOF operations do not add rows.
+
+Transfer callbacks receive the source row number, target row number and `RowTemplate`. Return the row to write it, `null` to omit it, or `false` to stop. A stopped row has already been read but is not written; a subsequent call resumes with the following row.
+
 ## Working with multiple sheets
 
 A template may contain several worksheets. Address a sheet by name with `sheet($name)`, or iterate over all of them with `sheets()`:
@@ -261,11 +293,32 @@ foreach ($excel->sheets() as $sheet) {
 $excel->save();
 ```
 
+Sheets can be processed in any order. Generated data is mapped to each sheet's original XML part even when workbook order differs from `sheetN.xml` numbering.
+
 ## Saving the result
 
 Call `save()` explicitly. The workbook is generated in a temporary file in the destination directory before the completed file replaces the output. Generation or publication failures preserve the previous output. The destination directory must exist and allow file creation.
 
 `save($path, false)` refuses to overwrite even a file created during generation. This mode uses a hard link and requires filesystem support for it. Saving to the source template path is rejected: choose a separate output file. Destroying the object does not automatically save the workbook.
+
+## Checking metadata preservation
+
+Default mode saves with the limitations in the [XLSX support matrix](XLSX_SUPPORT.md) and records diagnostics. For example, validation and conditional-formatting ranges retain their template coordinates when rows are inserted.
+
+```php
+$excel = Excel::template($tpl, $out, ['strict_metadata' => true]);
+foreach ($excel->sheets() as $sheet) {
+    $sheet->fill(['{{TITLE}}' => 'Report'])->transferRows();
+}
+$excel->save(); // throws on a detected unsupported transformation
+
+foreach ($excel->metadataDiagnostics() as $item) {
+    // sheet: XML part path; code: diagnostic code; message: explanation
+    error_log($item['sheet'] . ': ' . $item['code'] . ' — ' . $item['message']);
+}
+```
+
+Strict-mode diagnostics remain available after catching the exception; saving stops at the first detected limitation and preserves the existing destination. See the [diagnostic codes and exception example](XLSX_SUPPORT.md#diagnostics-and-strict-mode).
 
 ## Sending the file to the browser
 
@@ -280,10 +333,12 @@ $excel->output('invoice.xlsx');   // output() is an alias of download()
 
 ## Limitations
 
+See the [XLSX support matrix](XLSX_SUPPORT.md) for metadata preservation, reference semantics and structural limitations. Pass `['strict_metadata' => true]` as the third argument of `Excel::template()` to reject unsupported transformations. `metadataDiagnostics()` returns diagnostics from the latest save attempt. `setValue('A', null)` clears cell content and its formula while retaining formatting.
+
 FastExcelTemplator is built for one job — filling XLSX templates — and deliberately does not do everything:
 
 * **XLSX only** (Office 2007+). The old binary `.xls` cannot be used as a template; convert it to `.xlsx` first.
-* **Forward-only.** You process the template in a single top-to-bottom pass and cannot edit a row that has already been written.
+* **Forward-only output.** You cannot edit a row that has already been written. Template capture and metadata preservation use separate reads.
 * **Formulas are not calculated.** The library writes formula text (and re-bases it); the result is computed by Excel when the file is opened.
 * **Placeholders are value substitution only** — there is no in-cell logic (no `if`/loops). A table of unknown length is handled with row templates, not placeholders.
 * **Not a reader or a from-scratch writer.** To read data from a file use [FastExcelReader](https://github.com/aVadim483/fast-excel-reader); to build a spreadsheet entirely from code use [FastExcelWriter](https://github.com/aVadim483/fast-excel-writer).
@@ -297,7 +352,7 @@ Check `fill()` vs `replace()`. `fill()` only replaces a cell whose value equals 
 The library writes formulas but does not evaluate them — Excel computes the result when the file is opened. Make sure the value is a real formula starting with `=`.
 
 **How do I keep the logo / images / notes from the template?**
-They are preserved automatically. The output is a copy of the template with only the sheet data re-written, so anything you do not touch stays in place — just `fill()`/`replace()` and transfer the rows.
+Ordinary `fill()`/`replace()` and row transfer retain original images, notes and relationships. After structural changes, their anchors retain template coordinates; diagnostics report this limitation and strict mode rejects it.
 
 **I get `Allowed memory size exhausted` on a large file.**
 The library streams, so the bottleneck is usually your data source. Pull rows from the database with a cursor/generator instead of loading them all into an array (`fetchAll()`) before the insert loop.
@@ -306,6 +361,8 @@ The library streams, so the bottleneck is usually your data source. Pull rows fr
 No. Only XLSX (Office 2007+) is supported. Convert the `.xls` to `.xlsx` first (e.g. in Excel or LibreOffice) and use the result as the template.
 
 ## List of Functions
+
+Current-branch changes are listed under [Unreleased](CHANGELOG.md#unreleased). When upgrading, account for independent template insertions, zero-row operation semantics and strict-mode limitations.
 
 * [Class Excel](docs/91-api-class-excel.md)
 * [Class SheetTemplate](docs/92-api-class-sheet-template.md)

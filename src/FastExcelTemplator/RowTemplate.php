@@ -240,7 +240,7 @@ class RowTemplate implements \Iterator
     }
 
     /**
-     * Mark a cell as removed
+     * Mark a cell for row-local removal and left-shifting during transfer; unknown columns are ignored, horizontal merges shrink and affected multi-row merges are rejected.
      *
      * @param string $col
      *
@@ -260,7 +260,7 @@ class RowTemplate implements \Iterator
     }
 
     /**
-     * Mark multiple cells as removed
+     * Mark cells for row-local removal and left-shifting during transfer, using removeCell() semantics; references in other cells are not rewritten.
      *
      * @param string[] $cols
      *
@@ -379,12 +379,13 @@ class RowTemplate implements \Iterator
     }
 
     /**
-     * Set cell value
+     * Set cell value; null clears content and the old formula while retaining formatting
      *
-     * @param string $colLetter
-     * @param mixed $value
+     * @param string $colLetter Column letter, case-insensitive
+     * @param mixed $value Scalar or null; a string starting with '=' is a formula
      *
      * @return $this
+     * @throws Exception If the value is neither scalar nor null
      *
      * @example
      * $row->setValue('G', '=SUM(A1:A10)');
@@ -397,7 +398,7 @@ class RowTemplate implements \Iterator
             $this->cells[$colLetter]['v'] = '';
         }
         else {
-            if (!is_scalar($value)) {
+            if ($value !== null && !is_scalar($value)) {
                 throw new Exception('Value for column "' . $colLetter . '" is not scalar');
             }
             unset($this->cells[$colLetter]['f']);

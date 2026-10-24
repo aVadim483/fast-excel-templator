@@ -14,6 +14,10 @@ class RowTemplateCollection implements \Iterator
     /** Number of templates already returned by next() since the last rewind(), see valid() */
     protected int $visited = 0;
 
+    /** Independent insertion cycle; foreach and next() keep their existing contracts. */
+    protected array $insertionKeys = [];
+    protected int $insertionPosition = 0;
+
 
     /**
      * RowTemplateCollection constructor
@@ -60,6 +64,8 @@ class RowTemplateCollection implements \Iterator
         else {
             $this->rowTemplates[] = $row;
         }
+        $this->insertionKeys = [];
+        $this->insertionPosition = 0;
     }
 
     /**
@@ -73,7 +79,28 @@ class RowTemplateCollection implements \Iterator
     {
         if (isset($this->rowTemplates[$rowNum])) {
             unset($this->rowTemplates[$rowNum]);
+            $this->insertionKeys = [];
+            $this->insertionPosition = 0;
         }
+    }
+
+    /**
+     * Select the next insertion template independently of foreach/next()/rewind(); insertRow() shares this cycle and copies the selected template, while add/delete restarts it.
+     *
+     * @return RowTemplate
+     * @throws Exception If the collection is empty
+     */
+    public function nextTemplate(): RowTemplate
+    {
+        if (!$this->insertionKeys) {
+            $this->insertionKeys = array_keys($this->rowTemplates);
+        }
+        if (!$this->insertionKeys) {
+            throw new Exception('Cannot insert from an empty template collection');
+        }
+        $key = $this->insertionKeys[$this->insertionPosition];
+        $this->insertionPosition = ($this->insertionPosition + 1) % count($this->insertionKeys);
+        return $this->rowTemplates[$key];
     }
 
     /**
@@ -126,10 +153,7 @@ class RowTemplateCollection implements \Iterator
     }
 
     /**
-     * Move forward to next element, wrapping around at the end
-     *
-     * The wrap-around is what insertRow() relies on: calling next() repeatedly cycles through
-     * the captured templates (e.g. two rows for zebra striping) as long as rows are inserted.
+     * Move forward with wrap-around for compatibility; insertRow() uses the independent nextTemplate() cycle.
      *
      * @return mixed
      */

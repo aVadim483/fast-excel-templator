@@ -15,8 +15,8 @@
 * [getValues()](#getvalues) – Get values of all cells of the row
 * [key()](#key) – Return the key of the current element
 * [next()](#next) – Move forward to next element
-* [removeCell()](#removecell) – Mark a cell as removed
-* [removeCells()](#removecells) – Mark multiple cells as removed
+* [removeCell()](#removecell) – Mark a cell for row-local removal and left-shifting during transfer; unknown columns are ignored, horizontal merges shrink and affected multi-row merges are rejected.
+* [removeCells()](#removecells) – Mark cells for row-local removal and left-shifting during transfer, using removeCell() semantics; references in other cells are not rewritten.
 * [rewind()](#rewind) – Rewind the Iterator to the first element
 * [rowHeight()](#rowheight) – Source row height
 * [rowNumber()](#rownumber) – Source row number
@@ -24,7 +24,7 @@
 * [setCellStyle()](#setcellstyle) – Set cell style
 * [setRowStyle()](#setrowstyle) – Set row style
 * [setSheetTemplate()](#setsheettemplate) – Set sheet template
-* [setValue()](#setvalue) – Set cell value
+* [setValue()](#setvalue) – Set cell value; null clears content and the old formula while retaining formatting
 * [setValues()](#setvalues) – Set multiple cell values
 * [valid()](#valid) – Checks if current position is valid
 * [withValue()](#withvalue) – Assign a value to the last added cell
@@ -260,7 +260,7 @@ _None_
 ```php
 public function removeCell(string $col): RowTemplate
 ```
-_Mark a cell as removed_
+_Mark a cell for row-local removal and left-shifting during transfer; unknown columns are ignored, horizontal merges shrink and affected multi-row merges are rejected._
 
 ### Parameters
 
@@ -284,7 +284,7 @@ $row->removeCell('G');
 ```php
 public function removeCells(array $cols): RowTemplate
 ```
-_Mark multiple cells as removed_
+_Mark cells for row-local removal and left-shifting during transfer, using removeCell() semantics; references in other cells are not rewritten._
 
 ### Parameters
 
@@ -414,12 +414,12 @@ _Set sheet template_
 ```php
 public function setValue(string $colLetter, $value): RowTemplate
 ```
-_Set cell value_
+_Set cell value; null clears content and the old formula while retaining formatting_
 
 ### Parameters
 
-* `string $colLetter`
-* `mixed $value`
+* `string $colLetter` – Column letter, case-insensitive
+* `mixed $value` – Scalar or null; a string starting with '=' is a formula
 
 ---
 

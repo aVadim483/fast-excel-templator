@@ -44,12 +44,21 @@ class TemplateWriter extends \avadim\FastExcelWriter\Writer\Writer
             if (!$this->_writeSheetsFiles($sheets, $relationShips)) {
                 ExceptionFile::throwNew('Unable to generate sheets for "%s"', $outputFile);
             }
+            $replacements = [];
+            foreach ($sheets as $sheet) {
+                $generatedName = 'xl/worksheets/' . $sheet->xmlName;
+                $sourceName = $sheet instanceof SheetWriter && $sheet->templatePath() !== ''
+                    ? $sheet->templatePath() : $generatedName;
+                if (isset($this->tempFiles['zip'][$generatedName])) {
+                    $replacements[$sourceName] = $this->tempFiles['zip'][$generatedName];
+                }
+            }
             foreach ($entryList as $index => $name) {
-                if (strpos($name, 'xl/worksheets/sheet') === 0 && !empty($this->tempFiles['zip'][$name])) {
+                if (isset($replacements[$name])) {
                     if (PHP_VERSION_ID >= 80300) {
-                        $written = $this->zip->replaceFile($this->tempFiles['zip'][$name], $index);
+                        $written = $this->zip->replaceFile($replacements[$name], $index);
                     } else {
-                        $written = $this->zip->addFile($this->tempFiles['zip'][$name], $name);
+                        $written = $this->zip->addFile($replacements[$name], $name);
                     }
                     if (!$written) {
                         ExceptionFile::throwNew('Unable to replace entry "%s"', $name);

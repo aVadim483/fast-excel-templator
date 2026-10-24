@@ -7,12 +7,21 @@ on:
 
 jobs:
   phpunit:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        php: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
-    name: PHP ${{ matrix.php }}
+        php: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5']
+        os: [ubuntu-latest, windows-latest]
+        dependencies: [latest]
+        include:
+          - os: ubuntu-latest
+            php: '7.4'
+            dependencies: lowest
+          - os: windows-latest
+            php: '7.4'
+            dependencies: lowest
+    name: ${{ matrix.os }} / PHP ${{ matrix.php }} / ${{ matrix.dependencies }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,7 +34,24 @@ jobs:
           coverage: none
 
       - name: Install dependencies
-        run: composer update --prefer-dist --no-progress
+        if: matrix.dependencies == 'latest'
+        run: composer update --prefer-dist --no-progress --no-interaction
+
+      - name: Install lowest dependencies
+        if: matrix.dependencies == 'lowest'
+        run: composer update --prefer-lowest --prefer-stable --prefer-dist --no-progress --no-interaction
 
       - name: Run tests
-        run: vendor/bin/phpunit tests
+        run: php vendor/phpunit/phpunit/phpunit tests
+
+  analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: zip, json, mbstring, xmlreader, dom
+          coverage: none
+      - run: composer update --prefer-dist --no-progress --no-interaction
+      - run: composer analyse

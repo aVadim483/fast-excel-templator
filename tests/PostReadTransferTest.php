@@ -53,7 +53,11 @@ final class PostReadTransferTest extends TestCase
         $xml = $this->sheetXml($out);
 
         // issue #21: the autofilter range from the template must survive (not a hardcoded A1, not dropped)
-        self::assertStringContainsString('<autoFilter ref="A1:C4"/>', $xml);
+        $dom = new \DOMDocument();
+        self::assertTrue($dom->loadXML($xml));
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('s', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+        self::assertSame('A1:C4', $xpath->evaluate('string(//s:autoFilter/@ref)'));
 
         // issue #2: the dropdown (data validation) must be transferred with its range and list values
         self::assertStringContainsString('<dataValidation', $xml);

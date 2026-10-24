@@ -8,7 +8,8 @@
 * [current()](#current) – Return the current element
 * [delRowTemplate()](#delrowtemplate) – Delete row template from collection
 * [key()](#key) – Return the key of the current element
-* [next()](#next) – Move forward to next element, wrapping around at the end
+* [next()](#next) – Move forward with wrap-around for compatibility; insertRow() uses the independent nextTemplate() cycle.
+* [nextTemplate()](#nexttemplate) – Select the next insertion template independently of foreach/next()/rewind(); insertRow() shares this cycle and copies the selected template, while add/delete restarts it.
 * [rewind()](#rewind) – Rewind the Iterator to the first element
 * [setSheet()](#setsheet) – Set sheet template
 * [valid()](#valid) – Checks if current position is valid
@@ -28,7 +29,7 @@ _RowTemplateCollection constructor_
 ### Parameters
 
 * `array|null $rowData`
-* `SheetTemplate|null $sheet` – Sheet the templates were captured from; some operations (cloneCell) need it, it can also be set later by setSheet()
+* `SheetTemplate|null $sheet` – Sheet the templates were captured from; some operations (cloneCell) need it, it can also be set later by setSheet()
 
 ---
 
@@ -118,9 +119,22 @@ _None_
 ```php
 public function next(): mixed
 ```
-_Move forward to next element, wrapping around at the end_
+_Move forward with wrap-around for compatibility; insertRow() uses the independent nextTemplate() cycle._
 
-_The wrap-around is what insertRow() relies on: calling next() repeatedly cycles throughthe captured templates (e.g. two rows for zebra striping) as long as rows are inserted._
+### Parameters
+
+_None_
+
+---
+
+## nextTemplate()
+
+---
+
+```php
+public function nextTemplate(): RowTemplate
+```
+_Select the next insertion template independently of foreach/next()/rewind(); insertRow() shares this cycle and copies the selected template, while add/delete restarts it._
 
 ### Parameters
 
@@ -165,9 +179,7 @@ _Set sheet template_
 ```php
 public function valid(): bool
 ```
-_Checks if current position is valid_
-
-_Since next() deliberately wraps around, the position alone can never end a foreach.The counter reset by rewind() is what makes a foreach walk the collection exactly once._
+_Checks if current position is validSince next() deliberately wraps around, the position alone can never end a foreach.The counter reset by rewind() is what makes a foreach walk the collection exactly once._
 
 ### Parameters
 

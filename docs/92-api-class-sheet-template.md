@@ -41,14 +41,15 @@
 * [getRowHeight()](#getrowheight) – Get height of the row
 * [getRowStyle()](#getrowstyle) – Get row style
 * [getRowTemplate()](#getrowtemplate) – Capture a source row as a reusable template; returns a collection (use it with insertRow()).
-* [getRowTemplates()](#getrowtemplates) – Capture a range of source rows as templates; insertRow() cycles through them (e.g. for zebra striping).
+* [getRowTemplates()](#getrowtemplates) – Capture source rows as templates; missing rows become empty templates, and insertRow() cycles independently of foreach.
 * [getTabColorConfiguration()](#gettabcolorconfiguration) – Get tab color configuration. Alias of getTabColorConfig()
 * [getTabColorInfo()](#gettabcolorinfo) – Get the tab color info of the sheet
 * [hasDrawings()](#hasdrawings) – Returns true if the sheet has drawings
 * [hasImage()](#hasimage) – Returns TRUE if the cell contains an image
+* [hasStructuralChanges()](#hasstructuralchanges) – Return the conservative structural-operation flag; range remapping is not verified and direct low-level Writer edits are not fully tracked.
 * [id()](#id) – Get sheet ID
 * [imageEntryFullPath()](#imageentryfullpath) – Get full path to the image in the ZIP archive
-* [insertRow()](#insertrow) – Insert a row at the current output position, filling it with data by column letter.
+* [insertRow()](#insertrow) – Insert a template copy filled by column letter; omitted columns retain template values, and the template and prior inserts remain unchanged.
 * [isActive()](#isactive) – Returns true if the sheet is active
 * [isHidden()](#ishidden) – Returns true if the sheet is hidden
 * [isMerged()](#ismerged) – Returns true if the cell is merged
@@ -106,7 +107,7 @@
 * [setReadAreaColumns()](#setreadareacolumns) – setReadArea('C:AZ') - set left and right columns of read area
 * [setState()](#setstate) – Set sheet state (visible, hidden, veryHidden)
 * [skipRows()](#skiprows) – Skip rows from the template
-* [skipRowsUntil()](#skiprowsuntil) – Skip rows from the template
+* [skipRowsUntil()](#skiprowsuntil) – Advance through an inclusive source boundary without writing; later existing rows in a sparse sheet remain available.
 * [stat()](#stat) – Returns statistics of the sheet: rows, columns and cell counts
 * [state()](#state) – Get sheet state
 * [transferRows()](#transferrows) – Copy the next $countRows source rows (or all remaining if null) to the output, with an optional callback.
@@ -744,7 +745,7 @@ foreach ($data as $row) { $sheet->insertRow($tpl, ['A' => $row['id']]); }
 public function getRowTemplates(int $rowNumberMin, int $rowNumberMax, 
                                 ?bool $savePointerPosition = false): RowTemplateCollection
 ```
-_Capture a range of source rows as templates; insertRow() cycles through them (e.g. for zebra striping)._
+_Capture source rows as templates; missing rows become empty templates, and insertRow() cycles independently of foreach._
 
 ### Parameters
 
@@ -823,6 +824,21 @@ _Returns TRUE if the cell contains an image_
 
 ---
 
+## hasStructuralChanges()
+
+---
+
+```php
+public function hasStructuralChanges(): bool
+```
+_Return the conservative structural-operation flag; range remapping is not verified and direct low-level Writer edits are not fully tracked._
+
+### Parameters
+
+_None_
+
+---
+
 ## id()
 
 ---
@@ -860,7 +876,7 @@ _Get full path to the image in the ZIP archive_
 ```php
 public function insertRow($row, ?array $cellData = []): SheetTemplate
 ```
-_Insert a row at the current output position, filling it with data by column letter._
+_Insert a template copy filled by column letter; omitted columns retain template values, and the template and prior inserts remain unchanged._
 
 ### Parameters
 
@@ -1829,7 +1845,7 @@ _Skip rows from the template_
 
 ### Parameters
 
-* `int|null $countRows` – Number of rows
+* `int|null $countRows` – Source row positions to skip; null means to EOF, zero is a no-op, negative counts throw Exception
 
 ---
 
@@ -1840,11 +1856,11 @@ _Skip rows from the template_
 ```php
 public function skipRowsUntil(?int $maxRowNum = null): SheetTemplate
 ```
-_Skip rows from the template_
+_Advance through an inclusive source boundary without writing; later existing rows in a sparse sheet remain available._
 
 ### Parameters
 
-* `int|null $maxRowNum` – Max row of template
+* `int|null $maxRowNum` – Inclusive source boundary; null means to EOF, zero is a no-op, negative values throw Exception
 
 ---
 
@@ -1889,7 +1905,7 @@ _Copy the next $countRows source rows (or all remaining if null) to the output, 
 
 ### Parameters
 
-* `int|null $countRows` – Number of rows to transfer; null transfers all remaining rows
+* `int|null $countRows` – Source row positions to transfer; null means to EOF, zero is a no-op, negative counts throw Exception
 * `callable|null $callback` – function($sourceRowNum, $targetRowNum, RowTemplate $row): return $row to write it, null to skip the row, false to stop
 
 ---
@@ -1906,7 +1922,7 @@ _Copy source rows to the output up to $maxRowNum; an optional callback can modif
 
 ### Parameters
 
-* `int|null $maxRowNum` – Last source row to transfer; null transfers to the end
+* `int|null $maxRowNum` – Inclusive source boundary; null means to EOF, zero is a no-op, negative values throw Exception
 * `callable|null $callback` – function($sourceRowNum, $targetRowNum, RowTemplate $row): return $row to write it, null to skip the row, false to stop
 
 ---
