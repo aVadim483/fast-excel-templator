@@ -362,7 +362,7 @@ No. Only XLSX (Office 2007+) is supported. Convert the `.xls` to `.xlsx` first (
 
 ## List of Functions
 
-Current-branch changes are listed under [Unreleased](CHANGELOG.md#unreleased). When upgrading, account for independent template insertions, zero-row operation semantics and strict-mode limitations.
+Changes in [3.4.0](CHANGELOG.md#340---2026-10-24) include independent template insertions, zero-row operation semantics and strict metadata checks. Review the compatibility notes when upgrading. Future changes will be listed under [Unreleased](CHANGELOG.md#unreleased).
 
 * [Class Excel](docs/91-api-class-excel.md)
 * [Class SheetTemplate](docs/92-api-class-sheet-template.md)

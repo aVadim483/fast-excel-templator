@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-10-24
+
 ### Fixed
 - The template overwrite guard resolves file symlink chains and re-canonicalizes Windows short names (such as `RUNNER~1`) retained in a link target after the first `realpath()`.
 - `insertRow()` uses a template copy: partial data no longer inherits values from a previous insertion. Collection selection for insertion is independent of `foreach`.
