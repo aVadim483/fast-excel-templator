@@ -14,10 +14,10 @@ final class SafeSaveTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->dir = sys_get_temp_dir() . '/fxt-save-' . uniqid();
+        $this->dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'fxt-save-' . uniqid();
         mkdir($this->dir);
-        $this->tpl = $this->dir . '/tpl.xlsx';
-        $this->out = $this->dir . '/out.xlsx';
+        $this->tpl = $this->dir . DIRECTORY_SEPARATOR . 'tpl.xlsx';
+        $this->out = $this->dir . DIRECTORY_SEPARATOR . 'out.xlsx';
         $writer = Writer::create(['Sheet1']);
         $writer->sheet()->writeRow(['original']);
         $writer->save($this->tpl);
@@ -183,6 +183,9 @@ final class SafeSaveTest extends TestCase
     {
         if (!@symlink($this->tpl, $this->out)) { self::markTestSkipped('Symbolic links unavailable'); }
         $original = file_get_contents($this->tpl);
+        self::assertTrue(is_link($this->out));
+        self::assertFileExists($this->out, 'The symlink must resolve to the template before saving');
+        self::assertSame($original, file_get_contents($this->out));
         try {
             $this->workbook()->save();
             self::fail('Template symlink accepted');
@@ -190,11 +193,19 @@ final class SafeSaveTest extends TestCase
             self::assertStringContainsString('template', $e->getMessage());
         }
         self::assertSame($original, file_get_contents($this->tpl));
+        self::assertTrue(is_link($this->out));
     }
 
     public function testDanglingSymbolicLinkIsNotOverwrittenInExclusiveMode(): void
     {
-        if (!@symlink($this->dir . '/missing.xlsx', $this->out)) { self::markTestSkipped('Symbolic links unavailable'); }
+        // Windows requires an existing target at symlink creation time.
+        $target = $this->dir . DIRECTORY_SEPARATOR . 'missing.xlsx';
+        file_put_contents($target, 'temporary target');
+        if (!@symlink($target, $this->out)) { self::markTestSkipped('Symbolic links unavailable'); }
+        unlink($target);
+        clearstatcache(true);
+        self::assertTrue(is_link($this->out));
+        self::assertFalse(file_exists($this->out));
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('existing file');
         $this->workbook()->save(null, false);

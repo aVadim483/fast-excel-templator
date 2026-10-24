@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 - Added metadata, ZIP relationships, images, notes, filesystem links, null clearing, sparse rows, merge and Office fixture checks.
+- Symlink tests use native Windows separators and verify the target before saving. The dangling-link test creates an existing target and removes it after creating the link, allowing it to run on Windows too.
 
 ### Documentation
 - README and API reference now describe independent insertions, cursor rules and cell clearing. The support matrix documents diagnostic codes, strict rejection handling and structural limitations.
