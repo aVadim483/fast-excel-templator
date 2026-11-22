@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.0] - 2026-11-22
+
 ### Added
 
 - PHP 8.6 is tested in CI on Windows and Ubuntu.
