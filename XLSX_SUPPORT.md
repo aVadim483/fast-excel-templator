@@ -81,6 +81,6 @@ Relative paths, Windows case aliases and symbolic links resolving to the templat
 
 `tests/fixtures/` contains Excel and LibreOffice workbooks. Tests inspect output values and formulas, rule XML, node order, styles, ZIP relationships, images, notes and reverse sheet-processing order. Office applications are not required by PHPUnit.
 
-Run `composer test` and `composer analyse`. CI covers Windows/Ubuntu and PHP 7.4, 8.0–8.5. Lowest dependencies are checked separately on PHP 7.4; other jobs install current compatible versions. PHPStan level 1 targets PHP 7.4 without baseline entries or suppressed errors. The new internal metadata handler uses strict types; existing API coercion rules are retained.
+Run `composer test` and `composer analyse`. CI covers Windows/Ubuntu and PHP 7.4, 8.0–8.6. Lowest dependencies are checked separately on PHP 7.4; other jobs install current compatible versions. PHPStan level 1 targets PHP 7.4 without baseline entries or suppressed errors. The new internal metadata handler uses strict types; existing API coercion rules are retained.
 
 The local `TemplateWriter` adapter checks archive open, entry replacement and close results for the template save path.
