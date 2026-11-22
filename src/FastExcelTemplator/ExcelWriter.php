@@ -29,6 +29,9 @@ class ExcelWriter extends \avadim\FastExcelWriter\Excel
         unset($options['strict_metadata']);
         $options['writer_class'] = $options['writer_class'] ?? TemplateWriter::class;
         parent::__construct($options);
+        $settings = $this->styleManager->getLocaleSettings();
+        $this->formulaConverter = new FormulaConverter($settings['functions'] ?? []);
+        $this->formulaConverter->excel = $this;
     }
 
     public function __destruct()
@@ -105,7 +108,7 @@ class ExcelWriter extends \avadim\FastExcelWriter\Excel
                 }
             }
             foreach ($this->templateSheets as $sheet) {
-                $temporary = $metadata->rewrite($inputFile, $outputFile, $sheet->path(), $sheet->hasStructuralChanges(), dirname($outputFile));
+                $temporary = $metadata->rewrite($inputFile, $outputFile, $sheet, dirname($outputFile));
                 $temporaryFiles[] = $temporary;
                 if (!$zip->addFile($temporary, $sheet->path())) {
                     ExceptionFile::throwNew('Unable to preserve metadata for "%s"', $sheet->path());

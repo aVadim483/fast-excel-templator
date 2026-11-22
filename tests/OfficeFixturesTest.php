@@ -16,7 +16,12 @@ final class OfficeFixturesTest extends TestCase
         try {
             $excel = Excel::template($tpl, $out, ['strict_metadata' => true]);
             foreach ($excel->sheets() as $sheet) {
-                $sheet->fill(['{{NAME}}' => 'Report'])->transferRows();
+                $sheet->fill(['{{NAME}}' => 'Report'])->transferRows(null, static function ($source, $target, RowTemplate $row) {
+                    if ($source === 2) {
+                        $row->setValue('F', '=B2*2');
+                    }
+                    return $row;
+                });
             }
             self::assertTrue($excel->save());
             self::assertSame([], $excel->metadataDiagnostics());
@@ -29,6 +34,9 @@ final class OfficeFixturesTest extends TestCase
                 $generated = new \DOMDocument();
                 self::assertTrue($original->loadXML($source->getFromName('xl/worksheets/sheet1.xml')));
                 self::assertTrue($generated->loadXML($result->getFromName('xl/worksheets/sheet1.xml')));
+                $xpath = new \DOMXPath($generated);
+                $xpath->registerNamespace('s', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+                self::assertSame('B2*2', $xpath->evaluate('string(//s:c[@r="F2"]/s:f)'));
                 foreach (['sheetViews', 'conditionalFormatting', 'dataValidations', 'hyperlinks', 'tableParts', 'legacyDrawing'] as $tag) {
                     $sourceNodes = $original->getElementsByTagNameNS('http://schemas.openxmlformats.org/spreadsheetml/2006/main', $tag);
                     $targetNodes = $generated->getElementsByTagNameNS('http://schemas.openxmlformats.org/spreadsheetml/2006/main', $tag);

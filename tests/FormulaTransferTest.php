@@ -52,7 +52,7 @@ final class FormulaTransferTest extends TestCase
         $result = [];
         if (preg_match_all('#<c r="([A-Z]+\d+)"[^>]*><f>(.*?)</f>#', $xml, $matches, PREG_SET_ORDER)) {
             foreach ($matches as $one) {
-                $result[$one[1]] = $one[2];
+                $result[$one[1]] = html_entity_decode($one[2], ENT_QUOTES | ENT_XML1, 'UTF-8');
             }
         }
         $result['__xml'] = $xml;
@@ -124,6 +124,62 @@ final class FormulaTransferTest extends TestCase
         self::assertSame('SUM(A2:A4)', $formulas['B4']);
         self::assertSame('SUM(A3:A5)', $formulas['B5']);
         self::assertStringNotContainsString('C[', $formulas['__xml']);
+    }
+
+    /** @dataProvider opaqueFormulas */
+    public function testInsertedFormulaPreservesOpaqueReferences(string $source, string $expected): void
+    {
+        $writer = Writer::create(['Sheet1', "A1's report"]);
+        // The source text is already in A1 notation.
+        $writer->setR1C1(false);
+        $writer->sheet()->writeRow(['one'])->writeRow(['two'])->writeRow([1, 2, '=' . $source])
+            ->writeRow(['four']);
+        $writer->save($this->tpl);
+
+        $excel = Excel::template($this->tpl, $this->out);
+        $sheet = $excel->sheet();
+        $template = $sheet->getRowTemplate(3, true);
+        $sheet->transferRowsUntil(4)->insertRow($template);
+        self::assertTrue($excel->save());
+        self::assertSame($expected, $this->formulas($this->out)['C5']);
+    }
+
+    public static function opaqueFormulas(): array
+    {
+        return [
+            ['\'A1\'\'s report\'!B2', '\'A1\'\'s report\'!B4'],
+            ['SUM([@A1])+B2', 'SUM([@A1])+B4'],
+            ['SUM(Table1[[#This Row],[R2C3]],[[#This Row],[A1]])+B2', 'SUM(Table1[[#This Row],[R2C3]],[[#This Row],[A1]])+B4'],
+            ["'[1]R2C3''s report'!B2", "'[1]R2C3''s report'!B4"],
+            ['IF(B2>0,"A1 ""R2C3""",SUM($A2:B$3)+$B$2)', 'IF(B4>0,"A1 ""R2C3""",SUM($A4:B$3)+$B$2)'],
+        ];
+    }
+
+    public function testSharedFormulaMemberCanBeCapturedWithoutReadingItsMasterRow(): void
+    {
+        $writer = Writer::create(['Sheet1', "A1's report"]);
+        $writer->sheet()->writeRow(['one'])->writeRow(['two'])->writeRow([1, 2, '=B2'])
+            ->writeRow([1, 2, '=B3']);
+        self::assertTrue($writer->save($this->tpl));
+        $zip = new \ZipArchive();
+        self::assertTrue($zip->open($this->tpl));
+        $entry = 'xl/worksheets/sheet1.xml';
+        $xml = str_replace(
+            ['<f>B2</f>', '<f>B3</f>'],
+            ['<f t="shared" ref="C3:C4" si="0">\'A1\'\'s report\'!B2+SUM([@A1])</f>', '<f t="shared" si="0"/>'],
+            $zip->getFromName($entry)
+        );
+        self::assertTrue($zip->addFromString($entry, $xml));
+        self::assertTrue($zip->close());
+
+        $excel = Excel::template($this->tpl, $this->out);
+        $sheet = $excel->sheet();
+        $member = $sheet->getRowTemplate(4, true);
+        $sheet->transferRows()->insertRow($member);
+        self::assertTrue($excel->save());
+        $formulas = $this->formulas($this->out);
+        self::assertSame("'A1''s report'!B3+SUM([@A1])", $formulas['C4']);
+        self::assertSame("'A1''s report'!B4+SUM([@A1])", $formulas['C5']);
     }
 
     /**

@@ -33,6 +33,13 @@ class FormulaLexer
 
     private static ?string $pattern = null;
 
+    /** Sheet/workbook prefixes and table references are opaque in both formula notations. */
+    private const OPAQUE = "(?:\\[\\d+\\])?(?:'(?:[^']++|'')+'|["
+        . self::NAME_CHARS . "]+(?::[" . self::NAME_CHARS . "]+)?)!"
+        . '|[' . self::NAME_CHARS . ']*(?&brackets)';
+
+    // An apostrophe escapes a special character in a structured reference.
+    private const BRACKETS = "(?(DEFINE)(?<brackets>\\[(?:[^\\[\\]']++|'[\\[\\]#@']|(?&brackets))*\\]))";
 
     /**
      * The single pattern used for the scan, built once per process
@@ -43,7 +50,6 @@ class FormulaLexer
     {
         if (self::$pattern === null) {
             $skip = '(*SKIP)(*FAIL)';
-            $quote = chr(39);
             $name = '[' . self::NAME_CHARS . ']';
 
             self::$pattern = '~'
@@ -51,10 +57,7 @@ class FormulaLexer
                 . '"(?:[^"]|"")*"' . $skip
                 // an error constant; without this '#' would start a reference-looking mess
                 . '|\#(?:REF|N/A|DIV/0|VALUE|NAME|NULL|NUM|SPILL|CALC|FIELD|BLOCKED|CONNECT|UNKNOWN|GETTING_DATA)[!?]?' . $skip
-                // a sheet (or 3D sheet range) prefix, quoted or not, with an optional workbook index
-                . '|(?:\[\d+\])?(?:' . $quote . '[^' . $quote . ']+' . $quote . '|' . $name . '+(?::' . $name . '+)?)!' . $skip
-                // a structured table reference: Table1[Qty], Table1[[#Headers],[Qty]]
-                . '|' . $name . '+\[(?:[^\[\]]|\[[^\]]*\])*\]' . $skip
+                . '|(?:' . self::OPAQUE . ')' . $skip
                 // a number; matching it here is what keeps "1E3" from being read as cell E3
                 . '|\d+(?:\.\d+)?(?:[Ee][-+]?\d+)?' . $skip
                 // a function name, i.e. a name followed by '(' — SUM(, LOG10(, _xlfn.IFS(
@@ -63,10 +66,34 @@ class FormulaLexer
                 . '|(?<![' . self::NAME_CHARS . '$])'
                 . '(?P<ref>\$?[A-Za-z]{1,3}\$?\d{1,7}(?::\$?[A-Za-z]{1,3}\$?\d{1,7})?)'
                 . '(?![' . self::NAME_CHARS . '(\#])'
-                . '~';
+                . self::BRACKETS . '~';
         }
 
         return self::$pattern;
+    }
+
+    /** Protect prefixes and structured references from Writer's R1C1 and function normalization. */
+    public static function maskOpaqueReferences(string $formula, array &$masked): string
+    {
+        $prefix = '_fxt_';
+        while (strpos($formula, $prefix) !== false) {
+            $prefix .= '_';
+        }
+        // Skip string literals and genuine relative R1C1 tokens. Writer handles both itself.
+        // Do not skip a sheet prefix such as R2C3! or a table name followed by brackets.
+        $rc = 'R(?:\[-?\d+\]|\d*)C(?:\[-?\d+\]|\d*)';
+        $pattern = '~"(?:[^"]|"")*"(*SKIP)(*FAIL)'
+            . '|(?<![' . self::NAME_CHARS . '])' . $rc . '(?![' . self::NAME_CHARS . '\[!])(*SKIP)(*FAIL)'
+            . '|(?:' . self::OPAQUE . ')' . self::BRACKETS . '~';
+        return preg_replace_callback($pattern, static function (array $match) use (&$masked, $prefix): string {
+            $key = $prefix . count($masked) . '_';
+            // Keep the separator required by Writer's R1C1 regex after a sheet prefix.
+            if (substr($match[0], -1) === '!') {
+                $key .= '!';
+            }
+            $masked[$key] = $match[0];
+            return $key;
+        }, $formula) ?? $formula;
     }
 
     /**
@@ -86,14 +113,14 @@ class FormulaLexer
             return $formula;
         }
 
-        return (string)preg_replace_callback(self::pattern(), static function (array $m) use ($callback) {
+        return preg_replace_callback(self::pattern(), static function (array $m) use ($callback) {
             // groups other than 'ref' never capture: they are dropped by (*SKIP)(*FAIL)
             if (!isset($m['ref']) || $m['ref'] === '' || !self::isInsideSheet($m['ref'])) {
                 return $m[0];
             }
 
             return (string)$callback($m['ref']);
-        }, $formula);
+        }, $formula) ?? $formula;
     }
 
     /**

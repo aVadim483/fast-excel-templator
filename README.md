@@ -54,10 +54,9 @@ composer require avadim/fast-excel-templator
 
   | Package | Constraint |
   |---|---|
-  | `avadim/fast-excel-reader` | `^4.4` |
-  | `avadim/fast-excel-writer` | `^6.16.1` |
-
-  `avadim/fast-excel-helper` is installed transitively through these packages.
+  | `avadim/fast-excel-reader` | `^4.5.0` |
+  | `avadim/fast-excel-writer` | `^6.20.0` |
+  | `avadim/fast-excel-helper` | `^1.4.0` |
 
 ## How it works
 

@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Rebased formulas preserve sheet names containing escaped apostrophes, external workbook prefixes, and implicit or nested structured table references. The same handling applies to shared formulas.
+- Standard data validation and conditional formatting ranges follow transferred and copied rows on each sheet. Skipped source rows lose their rules, surviving rows retain coverage, and unsupported rule formula changes are diagnosed.
+
+### Changed
+
+- Raised the minimum Reader and Writer versions to 4.5.0 and 6.20.0. Helper 1.4.0 is now a direct dependency.
+- Explicit skips and callback skips or stops compact the output when processing resumes. Blank positions in sparse sheets retain their spacing.
+
 ## [3.4.0] - 2026-10-24
 
 ### Fixed

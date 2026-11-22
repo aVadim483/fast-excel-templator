@@ -46,7 +46,7 @@
 * [getTabColorInfo()](#gettabcolorinfo) – Get the tab color info of the sheet
 * [hasDrawings()](#hasdrawings) – Returns true if the sheet has drawings
 * [hasImage()](#hasimage) – Returns TRUE if the cell contains an image
-* [hasStructuralChanges()](#hasstructuralchanges) – Return the conservative structural-operation flag; range remapping is not verified and direct low-level Writer edits are not fully tracked.
+* [hasStructuralChanges()](#hasstructuralchanges) – Report whether source coordinates may have changed in the output.
 * [id()](#id) – Get sheet ID
 * [imageEntryFullPath()](#imageentryfullpath) – Get full path to the image in the ZIP archive
 * [insertRow()](#insertrow) – Insert a template copy filled by column letter; omitted columns retain template values, and the template and prior inserts remain unchanged.
@@ -831,7 +831,7 @@ _Returns TRUE if the cell contains an image_
 ```php
 public function hasStructuralChanges(): bool
 ```
-_Return the conservative structural-operation flag; range remapping is not verified and direct low-level Writer edits are not fully tracked._
+_Report whether source coordinates may have changed in the output._
 
 ### Parameters
 

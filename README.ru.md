@@ -49,10 +49,9 @@ composer require avadim/fast-excel-templator
 
   | Пакет | Ограничение |
   |---|---|
-  | `avadim/fast-excel-reader` | `^4.4` |
-  | `avadim/fast-excel-writer` | `^6.16.1` |
-
-  `avadim/fast-excel-helper` устанавливается транзитивно через эти пакеты.
+  | `avadim/fast-excel-reader` | `^4.5.0` |
+  | `avadim/fast-excel-writer` | `^6.20.0` |
+  | `avadim/fast-excel-helper` | `^1.4.0` |
 
 ## Как это работает
 

@@ -42,11 +42,16 @@ final class FormulaLexerTest extends TestCase
             'exponent is a number'    => ['=1E3+E3', ['E3']],
             'sheet prefix'            => ['=SUM(Sheet2!B2:B99)', ['B2:B99']],
             'quoted sheet name'       => ["=SUM('Sheet two'!B2:B9)", ['B2:B9']],
+            'escaped apostrophe'      => ["='A1''s report'!B2", ['B2']],
+            'quoted external book'    => ["='[Budget.xlsm]A1''s report'!B2", ['B2']],
             'non-ascii sheet name'    => ['=Лист2!A1+B2', ['A1', 'B2']],
             'external workbook'       => ['=[1]Sheet1!A1', ['A1']],
             'defined name'            => ['=TestDate1+1', []],
             'function name with digit' => ['=LOG10(A1)', ['A1']],
             'table reference'         => ['=SUMIF(Table1[Qty],">0")', []],
+            'implicit table'          => ['=SUM([@A1])+B2', ['B2']],
+            'nested table brackets'   => ['=SUM([[#This Row],[A1]:[B2]],Table1[[#Headers],[C3]])+D4', ['D4']],
+            'escaped bracket'         => ["=SUM([@A1']B2])+C3", ['C3']],
             'spilled range kept'      => ['=SUM(A1#)', []],
             'whole column kept'       => ['=SUM(A:A)', []],
             'last cell of a sheet'    => ['=XFD1048576', ['XFD1048576']],
@@ -84,6 +89,12 @@ final class FormulaLexerTest extends TestCase
     {
         self::assertSame('=R[-6]C[-2]', FormulaLexer::convertA1toRC('A1', 'C7'));
         self::assertSame('=R[-6]C[-2]', FormulaLexer::convertA1toRC('=A1', 'C7'));
+    }
+
+    public function testOpaqueReferencesArePreservedInRC(): void
+    {
+        self::assertSame("='A1''s report'!R[-1]C[-1]", FormulaLexer::convertA1toRC("='A1''s report'!B2", 'C3'));
+        self::assertSame('=SUM([@A1])+R[-1]C[-1]', FormulaLexer::convertA1toRC('=SUM([@A1])+B2', 'C3'));
     }
 
     public function testFormulaWithoutReferencesIsUntouched()

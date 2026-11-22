@@ -3,6 +3,8 @@
 namespace avadim\FastExcelTemplator;
 
 use avadim\FastExcelHelper\Helper;
+use avadim\FastExcelWriter\Area;
+use avadim\FastExcelWriter\Sheet as WriterSheet;
 use avadim\FastExcelWriter\Interfaces\InterfaceSheetWriter;
 use avadim\FastExcelWriter\Style\Style;
 
@@ -13,6 +15,45 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
     protected array $replace = [];
 
     protected string $templatePath = '';
+    private bool $untrackedRowChanges = false;
+
+    /** @internal */
+    public function hasUntrackedRowChanges(): bool
+    {
+        return $this->untrackedRowChanges;
+    }
+
+    public function nextRow($style = [], ?bool $forceRow = false): WriterSheet
+    {
+        $this->untrackedRowChanges = $this->templatePath !== '';
+        return parent::nextRow($style, $forceRow);
+    }
+
+    public function makeArea(string $range): Area
+    {
+        $area = parent::makeArea($range);
+        $this->untrackedRowChanges = $this->templatePath !== '';
+        return $area;
+    }
+
+    public function setTopLeftCell($cellAddress): WriterSheet
+    {
+        $sheet = parent::setTopLeftCell($cellAddress);
+        $this->untrackedRowChanges = $this->templatePath !== '';
+        return $sheet;
+    }
+
+    /** @internal */
+    public function finishTemplateRow(): void
+    {
+        parent::nextRow();
+    }
+
+    /** @internal Preserve sparse positions without flushing one row at a time. */
+    public function advanceTemplateRows(int $count): void
+    {
+        $this->currentRowIdx += $count;
+    }
 
     /** @internal Original worksheet part, independent of writer creation order. */
     public function setTemplatePath(string $path): void
@@ -133,6 +174,13 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
      */
     protected function _setCellData($cellAddress, $value, $styles = null, ?int $mergeFlag = 0, ?bool $changeCurrent = false): array
     {
+        // Writer also calls this during construction to initialize A1.
+        $this->untrackedRowChanges = $this->templatePath !== '';
+        return $this->setTemplatorCellData($cellAddress, $value, $styles, $mergeFlag, $changeCurrent);
+    }
+
+    private function setTemplatorCellData($cellAddress, $value, $styles, ?int $mergeFlag, ?bool $changeCurrent): array
+    {
         if ($value && is_string($value)) {
             if ($this->fill) {
                 foreach ($this->fill as $key => $val) {
@@ -179,7 +227,7 @@ class SheetWriter extends \avadim\FastExcelWriter\Sheet implements InterfaceShee
             }
             $value = ['value' => $value['v'], 'attr' => $attributes];
         }
-        $this->_setCellData($cellAddress, $value, $styles, false, true);
+        $this->setTemplatorCellData($cellAddress, $value, $styles, false, true);
     }
 
     /**

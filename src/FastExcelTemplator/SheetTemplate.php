@@ -36,15 +36,79 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
 
     protected bool $postReadDone  = false;
     protected bool $structureChanged = false;
+    private RowMapping $rowMapping;
+    private int $mappedSourceRow = 0;
+    private int $nextMappedTargetRow = 1;
+    private bool $sourceFinished = false;
+    private bool $untrackedSourceRows = false;
+    private bool $columnsShifted = false;
+    /** @var array<string, string> Shared formulas in notation relative to each group member. */
+    private array $sharedFormulaTemplates = [];
 
-    /**
-     * Return the conservative structural-operation flag; range remapping is not verified and direct low-level Writer edits are not fully tracked.
-     *
-     * @return bool
-     */
+    /** Whether source coordinates may have changed in the output. */
     public function hasStructuralChanges(): bool
     {
-        return $this->structureChanged;
+        return $this->structureChanged || $this->unmappedRowReason() !== null
+            || ($this->lastReadRowNum > 0 && !$this->sourceFinished);
+    }
+
+    /** @internal */
+    public function unmappedRowReason(): ?string
+    {
+        if (isset($this->sheetWriter) && $this->sheetWriter->hasUntrackedRowChanges()) {
+            return 'Direct Writer row or cell writes have no source row mapping.';
+        }
+        if ($this->columnsShifted) {
+            return 'Removing cells shifts columns; only row changes can be mapped.';
+        }
+        if ($this->untrackedSourceRows || $this->lastReadRowNum > $this->mappedSourceRow) {
+            return 'Rows consumed directly with readRow() have no source row mapping.';
+        }
+        return null;
+    }
+
+    /** @internal Include implicit blank positions beyond the end of a fully processed sheet. */
+    public function rowMapping(): RowMapping
+    {
+        $map = clone $this->rowMapping;
+        if ($this->sourceFinished && $this->mappedSourceRow < Helper::EXCEL_2007_MAX_ROW) {
+            $remaining = min(
+                Helper::EXCEL_2007_MAX_ROW - $this->mappedSourceRow,
+                Helper::EXCEL_2007_MAX_ROW - $this->nextMappedTargetRow + 1
+            );
+            if ($remaining > 0) {
+                $map->record($this->mappedSourceRow + 1, $this->mappedSourceRow + $remaining, $this->nextMappedTargetRow);
+            }
+        }
+        return $map;
+    }
+
+    private function trackReadPosition(): void
+    {
+        if ($this->lastReadRowNum > $this->mappedSourceRow) {
+            $this->untrackedSourceRows = true;
+            $this->mappedSourceRow = $this->lastReadRowNum;
+        }
+    }
+
+    private function transferGap(int $through): void
+    {
+        if ($through > $this->mappedSourceRow) {
+            $target = $this->sheetWriter->currentRowNum();
+            $this->rowMapping->record($this->mappedSourceRow + 1, $through, $target);
+            $this->sheetWriter->advanceTemplateRows($through - $this->mappedSourceRow);
+            $this->mappedSourceRow = $through;
+            $this->nextMappedTargetRow = $this->sheetWriter->currentRowNum();
+        }
+    }
+
+    private function finishMappedRow(?int $source, int $target): void
+    {
+        $this->sheetWriter->finishTemplateRow();
+        $this->nextMappedTargetRow = $this->sheetWriter->currentRowNum();
+        if ($source !== null) {
+            $this->rowMapping->record($source, $source, $target);
+        }
     }
 
 
@@ -60,6 +124,7 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
     public function __construct(string $sheetName, string $sheetId, string $file, string $path, $excel)
     {
         parent::__construct($sheetName, $sheetId, $file, $path, $excel);
+        $this->rowMapping = new RowMapping();
         $this->preReadFunc = [$this, 'preRead'];
         $this->postReadFunc = [$this, 'postRead'];
         // init dimension array
@@ -208,33 +273,16 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
         return $result;
     }
 
-    /**
-     * Convert A1 addresses to RC in formula
-     *
-     * @param $node
-     * @param string $address
-     *
-     * @return string
-     */
-    protected function _cellFormula($node, string $address): string
-    {
-        $formula = parent::_cellFormula($node, $address);
-        if (method_exists(\avadim\FastExcelReader\Sheet::class, '_makeCellFormula')) {
-            return $formula;
-        }
-        // an array formula is based on the top-left cell of its range, not on the current cell
-        $ref = (string)$node->getAttribute('ref');
-        if (!$ref) {
-            $ref = $address;
-        }
-
-        return FormulaLexer::convertA1toRC($formula, $ref);
-    }
-
-    /** Newer Readers parse streamed cells without invoking the DOM-based _cellFormula(). */
     protected function _makeCellFormula(string $type, string $si, string $refAttr, ?string $formula, string $address): string
     {
+        if ($type === 'shared' && $si !== '') {
+            if ($formula !== null && $formula !== '') {
+                $this->sharedFormulaTemplates[$si] = FormulaLexer::convertA1toRC($formula, $refAttr ?: $address);
+            }
+            return $this->sharedFormulaTemplates[$si] ?? '';
+        }
         $formula = parent::_makeCellFormula($type, $si, $refAttr, $formula, $address);
+        // An array formula is based on the top-left cell of its range.
         return FormulaLexer::convertA1toRC($formula, $refAttr !== '' ? $refAttr : $address);
     }
 
@@ -425,6 +473,15 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
                         $this->rowTemplateNo = $r;
                     }
                 }
+                elseif ($xmlReader->nodeType === \XMLReader::ELEMENT && $xmlReader->name === 'f'
+                    && $xmlReader->getAttribute('t') === 'shared') {
+                    // The selected rows can start in the middle of a shared formula group.
+                    $ref = (string)$xmlReader->getAttribute('ref');
+                    $si = (string)$xmlReader->getAttribute('si');
+                    if ($ref !== '' && $si !== '' && !isset($this->sharedFormulaTemplates[$si])) {
+                        $this->_makeCellFormula('shared', $si, $ref, $xmlReader->readString(), $ref);
+                    }
+                }
                 if (!$findNum) {
                     break;
                 }
@@ -462,6 +519,13 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
      */
     public function insertRow($row, ?array $cellData = []): SheetTemplate
     {
+        $this->writeTemplateRow($this->prepareTemplateRow($row, $cellData));
+        return $this;
+    }
+
+    /** @param array|RowTemplateCollection|RowTemplate $row */
+    private function prepareTemplateRow($row, ?array $cellData): RowTemplate
+    {
         if (is_array($row)) {
             $cellData = $row;
             $row = new RowTemplate();
@@ -474,9 +538,13 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
         }
         $row = clone $row;
         $row->setValues($cellData ?? []);
+        return $row;
+    }
 
+    private function writeTemplateRow(RowTemplate $row, ?int $replacedSource = null): void
+    {
         $rowNumber = $this->sheetWriter->currentRowNum();
-        $rowHeight = ($row instanceof RowTemplate) ? $row->attribute('ht') : null;
+        $rowHeight = $row->attribute('ht');
         if ($rowHeight !== null) {
             $this->sheetWriter->setRowHeight($rowNumber, $rowHeight);
         }
@@ -501,11 +569,13 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
             }
         }
         $this->countInsertedRows++;
-        $this->structureChanged = true;
+        $this->structureChanged = $this->structureChanged || $replacedSource !== $rowNumber;
         $this->lastTouchRowNum = $rowNumber;
-        $this->sheetWriter->nextRow();
-
-        return $this;
+        $source = $replacedSource;
+        if ($source === null && $row->getSheetTemplate() === $this) {
+            $source = $row->rowNumber();
+        }
+        $this->finishMappedRow($source, $rowNumber);
     }
 
     /**
@@ -518,11 +588,16 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
      */
     public function replaceRow($row, ?array $cellData = [])
     {
-        $this->insertRow($row, $cellData);
-        // consume exactly one source row, so the replacement takes its place
+        $row = $this->prepareTemplateRow($row, $cellData);
+        $this->trackReadPosition();
+        $source = null;
         foreach ($this->readRow() as $rowNum => $rowData) {
+            $this->transferGap($rowNum - 1);
+            $source = $this->mappedSourceRow = $rowNum;
             break;
         }
+        $this->writeTemplateRow($row, $source);
+        $this->sourceFinished = $this->readGenerator !== null && !$this->readGenerator->valid();
 
         return $this;
     }
@@ -707,62 +782,50 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
         if ($maxRowNum !== null && $maxRowNum < 0) {
             throw new Exception('Row limit cannot be negative');
         }
-        $skippedRows = 0;
-        if ($maxRowNum === null || $maxRowNum > $this->lastReadRowNum) {
-            foreach ($this->readRowsUntil($maxRowNum) as $sourceRowNum => $rowData) {
-                if (!$maxRowNum || $sourceRowNum <= $maxRowNum) {
-                    $targetRowNum = $this->sheetWriter->currentRowNum();
-                    if ($targetRowNum < $sourceRowNum) {
-                        $targetRowNum = $sourceRowNum;
-                    }
-                    if ($callback) {
-                        $res = $callback($sourceRowNum, $targetRowNum - $skippedRows, $rowData);
-                        if ($res === null) {
-                            $this->structureChanged = true;
-                            $skippedRows++;
-                            continue;
-                        }
-                        if ($res === false) {
-                            break;
-                        }
-                        if ($res instanceof RowTemplate) {
-                            $rowData = $res;
-                        }
-                    }
-                    $this->sheetWriter->setRowAttributes($targetRowNum - $skippedRows, $rowData->getAttributes());
-                    if ($targetRowNum - $skippedRows !== $sourceRowNum) {
-                        $this->structureChanged = true;
-                    }
-                    if ($height = $rowData->rowHeight()) {
-                        $this->sheetWriter->setRowHeight($targetRowNum - $skippedRows, $height);
-                    }
-                    $offsetColIdx = 0;
-                    foreach ($this->cellsAfterRemoval($rowData, $sourceRowNum) as $colLetter => $cellData) {
-                        if (!empty($cellData['__removed'])) {
-                            $this->structureChanged = true;
-                            $offsetColIdx++;
-                        }
-                        else {
-                            $targetColIdx = Helper::colIndex($colLetter) - $offsetColIdx;
-                            $cellAddress = Helper::colLetter($targetColIdx + 1) . ($targetRowNum - $skippedRows);
-                            $cellAddressIdx = ['row_idx' => $targetRowNum - $skippedRows - 1, 'col_idx' => $targetColIdx];
-                            $this->_writeWithStyle($cellAddress, $cellAddressIdx, $cellData);
-                        }
-                    }
-                    $this->sheetWriter->nextRow();
-                }
-                if ($maxRowNum !== null && !empty($sourceRowNum) && ($sourceRowNum >= $maxRowNum)) {
-                    while ($this->sheetWriter->currentRowNum() <= $maxRowNum) {
-                        $this->sheetWriter->nextRow();
-                    }
+        if ($maxRowNum !== null && $maxRowNum <= $this->lastReadRowNum) {
+            return $this;
+        }
+        $this->trackReadPosition();
+        foreach ($this->readRowsUntil($maxRowNum) as $sourceRowNum => $rowData) {
+            $this->transferGap($sourceRowNum - 1);
+            $this->mappedSourceRow = $sourceRowNum;
+            $targetRowNum = $this->sheetWriter->currentRowNum();
+            if ($callback) {
+                $res = $callback($sourceRowNum, $targetRowNum, $rowData);
+                if ($res === false) {
+                    $this->structureChanged = true;
                     break;
                 }
+                if ($res === null) {
+                    $this->structureChanged = true;
+                    continue;
+                }
+                if ($res instanceof RowTemplate) {
+                    $rowData = $res;
+                }
+                $targetRowNum = $this->sheetWriter->currentRowNum();
             }
 
-            ///$xmlReader = $this->getReader();
-            // read page options and others
-            ///$this->postRead($xmlReader);
+            $this->sheetWriter->setRowAttributes($targetRowNum, $rowData->getAttributes());
+            if ($height = $rowData->rowHeight()) {
+                $this->sheetWriter->setRowHeight($targetRowNum, $height);
+            }
+            $offsetColIdx = 0;
+            foreach ($this->cellsAfterRemoval($rowData, $sourceRowNum) as $colLetter => $cellData) {
+                if (!empty($cellData['__removed'])) {
+                    $this->columnsShifted = true;
+                    $offsetColIdx++;
+                    continue;
+                }
+                $targetColIdx = Helper::colIndex($colLetter) - $offsetColIdx;
+                $cellAddress = Helper::colLetter($targetColIdx + 1) . $targetRowNum;
+                $cellAddressIdx = ['row_idx' => $targetRowNum - 1, 'col_idx' => $targetColIdx];
+                $this->_writeWithStyle($cellAddress, $cellAddressIdx, $cellData);
+            }
+            $this->finishMappedRow($sourceRowNum, $targetRowNum);
         }
+        $this->transferGap($this->lastReadRowNum);
+        $this->sourceFinished = $this->readGenerator !== null && !$this->readGenerator->valid();
         return $this;
     }
 
@@ -817,12 +880,14 @@ class SheetTemplate extends \avadim\FastExcelReader\Sheet implements InterfaceSh
             throw new Exception('Row limit cannot be negative');
         }
         if ($maxRowNum === null || $maxRowNum > $this->lastReadRowNum) {
+            $this->trackReadPosition();
             foreach ($this->readRowsUntil($maxRowNum) as $rowNum => $rowData) {
+                $this->transferGap($rowNum - 1);
+                $this->mappedSourceRow = $rowNum;
                 $this->structureChanged = true;
-                if ($maxRowNum !== null && !empty($rowNum) && ($rowNum >= $maxRowNum)) {
-                    break;
-                }
             }
+            $this->transferGap($this->lastReadRowNum);
+            $this->sourceFinished = $this->readGenerator !== null && !$this->readGenerator->valid();
         }
 
         return $this;

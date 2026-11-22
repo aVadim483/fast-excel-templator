@@ -108,13 +108,16 @@ final class MetadataPreservationTest extends TestCase
         self::assertNotEmpty($excel->metadataDiagnostics());
     }
 
-    public function testDefaultModeReportsUnmappedRangesWithoutChangingThem(): void
+    public function testDefaultModeRemapsRulesAndReportsUnmappedHyperlinks(): void
     {
         $excel = Excel::template($this->tpl, $this->out);
         $excel->sheet()->insertRow(['A' => 'inserted'])->transferRows();
         $excel->save();
-        self::assertNotEmpty($excel->metadataDiagnostics());
-        self::assertStringContainsString('sqref="B1:B2"', $this->part($this->out, 'xl/worksheets/sheet1.xml'));
+        self::assertSame('unmapped-ranges', $excel->metadataDiagnostics()[0]['code']);
+        $xpath = $this->xpath($this->part($this->out, 'xl/worksheets/sheet1.xml'));
+        self::assertSame('B2:B3', $xpath->evaluate('string(//s:conditionalFormatting/@sqref)'));
+        self::assertSame('B2 B3', $xpath->evaluate('string(//s:dataValidation/@sqref)'));
+        self::assertSame('A1', $xpath->evaluate('string(//s:hyperlink/@ref)'));
     }
 
     public function testUnknownWorksheetFeatureIsReportedOrRejected(): void

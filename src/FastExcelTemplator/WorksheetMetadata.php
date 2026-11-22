@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace avadim\FastExcelTemplator;
 
+use avadim\FastExcelHelper\Helper;
+
 /** @internal Stream regenerated row data while retaining template worksheet metadata. */
 final class WorksheetMetadata
 {
@@ -165,6 +167,157 @@ final class WorksheetMetadata
         return $dom->saveXML($dom->documentElement);
     }
 
+    /** Map source rules before combining them with rules already in output coordinates. */
+    private function remapRules(array $source, SheetTemplate $sheet): array
+    {
+        $mapping = $sheet->rowMapping();
+        foreach (['dataValidations', 'conditionalFormatting'] as $kind) {
+            foreach ($source[$kind] ?? [] as $index => $xml) {
+                $dom = new \DOMDocument();
+                if (!$dom->loadXML($xml, LIBXML_NONET)) {
+                    throw new Exception('Cannot read rule metadata for "' . $sheet->name() . '"');
+                }
+                $root = $dom->documentElement;
+                if ($kind === 'dataValidations') {
+                    $count = 0;
+                    foreach (iterator_to_array($root->childNodes) as $rule) {
+                        if ($rule instanceof \DOMElement && $rule->namespaceURI === self::NS
+                            && $rule->localName === 'dataValidation') {
+                            if ($this->remapRule($rule, $mapping, $sheet)) {
+                                $count++;
+                            } else {
+                                $root->removeChild($rule);
+                            }
+                        }
+                    }
+                    $root->setAttribute('count', (string)$count);
+                    $keep = $count > 0;
+                } else {
+                    $keep = $this->remapRule($root, $mapping, $sheet);
+                }
+                if ($keep) {
+                    $source[$kind][$index] = $dom->saveXML($root);
+                } else {
+                    unset($source[$kind][$index]);
+                }
+            }
+            if (empty($source[$kind])) {
+                unset($source[$kind]);
+            }
+        }
+        return $source;
+    }
+
+    /** Return false when a rule no longer covers any source-derived row. */
+    private function remapRule(\DOMElement $rule, RowMapping $mapping, SheetTemplate $sheet): bool
+    {
+        $sqref = $rule->getAttribute('sqref');
+        $context = $rule->localName . ' on "' . $sheet->name() . '" (sqref="' . $sqref . '")';
+        $areas = [];
+        $anchor = null;
+        $shift = null;
+        $uniform = true;
+        foreach (preg_split('/\s+/', trim($sqref)) as $area) {
+            if (!preg_match('/^([A-Z]{1,3})([1-9][0-9]{0,6})(?::([A-Z]{1,3})([1-9][0-9]{0,6}))?$/iD', $area, $cell)) {
+                $this->report($sheet->path(), 'unmapped-rule-range', $context . ' has an unsupported reference.');
+                return true;
+            }
+            $first = (int)$cell[2];
+            $last = (int)($cell[4] ?? $first);
+            $left = strtoupper($cell[1]);
+            $right = strtoupper($cell[3] ?? $left);
+            if ($last < $first || $last > Helper::EXCEL_2007_MAX_ROW
+                || Helper::colNumber($left) > Helper::colNumber($right)
+                || Helper::colNumber($right) > Helper::EXCEL_2007_MAX_COL) {
+                $this->report($sheet->path(), 'unmapped-rule-range', $context . ' has invalid bounds.');
+                return true;
+            }
+            $anchor = $anchor ?? [$left, $first];
+            foreach ($mapping->project($first, $last) as [$start, $end, $delta]) {
+                $shift = $shift ?? ($start - $anchor[1]);
+                $uniform = $uniform && $shift === $delta && ($areas || $anchor[0] === $left);
+                $startCell = $left . $start;
+                $endCell = $right . $end;
+                $areas[] = $startCell === $endCell ? $startCell : $startCell . ':' . $endCell;
+            }
+        }
+        if (!$areas) {
+            return false;
+        }
+        $mapped = implode(' ', $areas);
+        if ($mapped !== $sqref || !$uniform) {
+            $this->remapRuleFormulas($rule, $uniform ? $shift : null, $sheet, $context);
+            $rule->setAttribute('sqref', $mapped);
+        }
+        return true;
+    }
+
+    private function remapRuleFormulas(\DOMElement $rule, ?int $shift, SheetTemplate $sheet, string $context): void
+    {
+        $formulas = [];
+        foreach (['formula1', 'formula2', 'formula', 'cfvo'] as $tag) {
+            foreach ($rule->getElementsByTagNameNS(self::NS, $tag) as $node) {
+                if ($tag === 'cfvo' && $node->getAttribute('type') !== 'formula') {
+                    continue;
+                }
+                $attribute = $tag === 'cfvo' ? $node->getAttributeNode('val') : null;
+                $formulas[] = $attribute ?: $node;
+            }
+        }
+        $replacements = [];
+        foreach ($formulas as $node) {
+            $formula = $this->shiftRuleFormula($node->nodeValue, $shift);
+            if ($formula === null) {
+                $this->report($sheet->path(), 'unmapped-rule-formula', $context . ' has a formula whose meaning cannot be preserved after remapping.');
+                return;
+            }
+            $replacements[] = $formula;
+        }
+        foreach ($formulas as $index => $node) {
+            if ($node->nodeValue !== $replacements[$index]) {
+                if ($node instanceof \DOMAttr) {
+                    $node->ownerElement->setAttribute($node->name, $replacements[$index]);
+                } else {
+                    $node->textContent = $replacements[$index];
+                }
+            }
+        }
+    }
+
+    /**
+     * Translate ordinary relative row references only when the entire rule moves uniformly.
+     * Context-dependent functions, named ranges, sheet prefixes and other unverified syntax
+     * must be diagnosed. Scalar values and formulae containing only fixed rows need no shift.
+     */
+    private function shiftRuleFormula(string $formula, ?int $shift): ?string
+    {
+        if ($shift === 0) {
+            return $formula;
+        }
+        $syntax = FormulaLexer::replaceReferences($formula, static function (string $ref): string {
+            return '0';
+        });
+        $syntax = preg_replace('/"(?:[^"]|"")*"/', '0', $syntax);
+        if (!preg_match('~^(?:[\s0-9.+*/^%&<>=(),-]|\b(?:TRUE|FALSE)\b|(?<=\d)[Ee](?=[+-]?\d))*$~iD', $syntax)) {
+            return null;
+        }
+        $valid = true;
+        $result = FormulaLexer::replaceReferences($formula, static function (string $ref) use ($shift, &$valid): string {
+            return preg_replace_callback('/(\$?[A-Z]{1,3})(\$?)([0-9]+)/i', static function (array $cell) use ($shift, &$valid): string {
+                if ($cell[2] === '$') {
+                    return $cell[0];
+                }
+                $row = (int)$cell[3] + $shift;
+                if ($shift === null || $row < 1 || $row > Helper::EXCEL_2007_MAX_ROW) {
+                    $valid = false;
+                    return $cell[0];
+                }
+                return $cell[1] . $row;
+            }, $ref);
+        });
+        return $valid ? $result : null;
+    }
+
     /** @param resource $output */
     private function metadata($output, array $order, array $source, array $generated, string $path): void
     {
@@ -208,14 +361,24 @@ final class WorksheetMetadata
     }
 
     /** Return a temporary sheet XML, to be retained until ZipArchive::close(). */
-    public function rewrite(string $input, string $generated, string $path, bool $changed, string $directory): string
+    public function rewrite(string $input, string $generated, SheetTemplate $sheet, string $directory): string
     {
+        $path = $sheet->path();
         [$rootAttributes, $source] = $this->source($input, $path);
-        if ($changed) {
-            $sensitive = ['autoFilter', 'conditionalFormatting', 'dataValidations', 'hyperlinks', 'tableParts',
+        if ($sheet->hasStructuralChanges()) {
+            if (isset($source['dataValidations']) || isset($source['conditionalFormatting'])) {
+                $unmapped = $sheet->unmappedRowReason();
+                if ($unmapped === null) {
+                    $source = $this->remapRules($source, $sheet);
+                } else {
+                    $this->report($path, 'unmapped-rule-ranges', 'Rules on "' . $sheet->name() . '": ' . $unmapped);
+                }
+            }
+            $sensitive = ['autoFilter', 'hyperlinks', 'tableParts',
                 'drawing', 'legacyDrawing', 'extLst', 'sortState', 'rowBreaks', 'colBreaks'];
-            if (array_intersect($sensitive, array_keys($source))) {
-                $this->report($path, 'unmapped-ranges', 'Metadata ranges and drawing anchors retain template coordinates after structural changes.');
+            $unmapped = array_intersect($sensitive, array_keys($source));
+            if ($unmapped) {
+                $this->report($path, 'unmapped-ranges', 'Template coordinates are retained after structural changes for: ' . implode(', ', $unmapped) . '.');
             }
             // Defined names are kept in workbook.xml, including print areas and named ranges.
             $workbook = $this->reader($input, 'xl/workbook.xml');
