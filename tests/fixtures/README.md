@@ -4,4 +4,4 @@
 
 `metadata-libreoffice.xlsx` is the same workbook opened and saved as XLSX by LibreOffice on that date. It exercises the XML representation produced by Calc, including its extensions.
 
-The fixtures contain synthetic data only. `OfficeFixturesTest` checks semantic XML equality of preserved metadata and verifies that cell replacements still work. External Office applications are not required to run PHPUnit.
+The fixtures contain synthetic data only. `OfficeFixturesTest` checks cell replacements, semantic XML equality of preserved metadata, and the rule ranges after rows are inserted and skipped. External Office applications are not required to run PHPUnit.

@@ -9,15 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- PHP 8.6 is tested in CI on Windows and Ubuntu.
+
 ### Fixed
 
 - Rebased formulas preserve sheet names containing escaped apostrophes, external workbook prefixes, and implicit or nested structured table references. The same handling applies to shared formulas.
 - Standard data validation and conditional formatting ranges follow transferred and copied rows on each sheet. Skipped source rows lose their rules, surviving rows retain coverage, and unsupported rule formula changes are diagnosed.
+- Rule formulas using `AND()`, `OR()` and `NOT()` can rebase their relative A1 references when the entire rule range moves uniformly.
 
 ### Changed
 
 - Raised the minimum Reader and Writer versions to 4.5.0 and 6.20.0. Helper 1.4.0 is now a direct dependency.
-- Explicit skips and callback skips or stops compact the output when processing resumes. Blank positions in sparse sheets retain their spacing.
+- Explicit skips and callback skips or stops compact the output when processing resumes. For example, skipping source row 2 with `skipRows()` moves a rule range from `B3:B5` to `B2:B4`. Blank positions in sparse sheets retain their spacing.
 
 ## [3.4.0] - 2026-10-24
 

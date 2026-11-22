@@ -26,7 +26,7 @@ Combining original and newly generated conditional rules requires explicit prior
 
 Single cells, rectangles and lists of areas are handled per sheet. For example, when source row 2 is skipped, `B3:B5` becomes `B2:B4`. Each copy of a row template from that sheet inherits the rules covering the source row. A blank row inserted without a source template has no inherited coverage and can split an area. Sparse positions keep their spacing. When a callback stops a transfer, the stopped row is consumed. Unread rows enter the mapping if a later transfer reaches them.
 
-A rule formula based on ordinary A1 references and arithmetic or comparison operators follows a uniform row shift. References with absolute row numbers and scalar formulas such as validation bounds or a literal list retain their text. A rule with a relative formula and mixed row displacements is diagnosed, as are formula syntaxes whose anchoring cannot be verified. Default mode applies the new `sqref` and retains the original formula in those cases. Strict mode rejects the save.
+A rule formula follows a uniform row shift when it uses ordinary A1 references, arithmetic or comparison operators, or the logical functions `AND()`, `OR()` and `NOT()`. References with absolute row numbers and scalar formulas such as validation bounds or a literal list retain their text. A rule with a relative formula and mixed row displacements is diagnosed, as are formula syntaxes whose anchoring cannot be verified. Default mode applies the new `sqref` and retains the original formula in those cases. Strict mode rejects the save.
 
 ## Diagnostics and strict mode
 

@@ -298,7 +298,9 @@ final class WorksheetMetadata
             return '0';
         });
         $syntax = preg_replace('/"(?:[^"]|"")*"/', '0', $syntax);
-        if (!preg_match('~^(?:[\s0-9.+*/^%&<>=(),-]|\b(?:TRUE|FALSE)\b|(?<=\d)[Ee](?=[+-]?\d))*$~iD', $syntax)) {
+        $allowedSyntax = '~^(?:[\s0-9.+*/^%&<>=(),-]|\b(?:TRUE|FALSE)\b'
+            . '|\b(?:AND|OR|NOT)(?=\s*\()|(?<=\d)[Ee](?=[+-]?\d))*$~iD';
+        if (!preg_match($allowedSyntax, $syntax)) {
             return null;
         }
         $valid = true;

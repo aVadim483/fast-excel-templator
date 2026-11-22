@@ -127,9 +127,10 @@ final class RuleRowMappingTest extends TestCase
         self::assertSame([1, 2, 2, 4], array_column($output->sheet('Beta')->readRows(), 'A'));
     }
 
-    public function testRelativeRuleFormulasFollowUniformShiftAcrossTransferCalls(): void
+    /** @dataProvider relativeRuleFormulas */
+    public function testRelativeRuleFormulasFollowUniformShiftAcrossTransferCalls(string $formula, string $shifted): void
     {
-        $this->makeTemplate(['Data' => ['B3:B5' => '$A3>A$1']]);
+        $this->makeTemplate(['Data' => ['B3:B5' => $formula]]);
         $excel = Excel::template($this->template, $this->output, ['strict_metadata' => true]);
         $sheet = $excel->sheet();
         $sheet->transferRowsUntil(2, static function ($source, $target, $row) {
@@ -138,15 +139,37 @@ final class RuleRowMappingTest extends TestCase
         $sheet->transferRows();
         self::assertTrue($excel->save());
         $xpath = $this->xpath(1);
-        $expected = ['B2:B4' => '$A2>A$1'];
+        $expected = ['B2:B4' => $shifted];
         self::assertSame($expected, $this->rules($xpath, '//s:dataValidation'));
         self::assertSame($expected, $this->rules($xpath, '//s:conditionalFormatting'));
         self::assertSame([], $excel->metadataDiagnostics());
     }
 
+    public static function relativeRuleFormulas(): array
+    {
+        return [
+            'comparison' => ['$A3>A$1', '$A2>A$1'],
+            'logical functions' => [
+                'AND($A3<>"OR(A3)",oR($B3>0,NOT($C$1)))',
+                'AND($A2<>"OR(A3)",oR($B2>0,NOT($C$1)))',
+            ],
+        ];
+    }
+
+    public function testContextDependentRuleFunctionIsRejectedAfterUniformShift(): void
+    {
+        $this->makeTemplate(['Data' => ['B3:B5' => 'AND(ROW()>2,A3>0)']]);
+        $excel = Excel::template($this->template, $this->output, ['strict_metadata' => true]);
+        $excel->sheet()->transferRowsUntil(1)->skipRows(1)->transferRows();
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('on "Data" (sqref="B3:B5")');
+        $excel->save();
+    }
+
     public function testSplitWithRelativeFormulaIsDiagnosed(): void
     {
-        $this->makeTemplate(['Data' => ['B1:B3' => 'A1>0']]);
+        $formula = 'AND(A1>0,A1<10)';
+        $this->makeTemplate(['Data' => ['B1:B3' => $formula]]);
         foreach ([false, true] as $strict) {
             $excel = Excel::template($this->template, $this->output, ['strict_metadata' => $strict]);
             $excel->sheet()->transferRowsUntil(1)->insertRow(['A' => 90])->transferRows();
@@ -156,7 +179,7 @@ final class RuleRowMappingTest extends TestCase
             }
             self::assertTrue($excel->save());
             self::assertSame('unmapped-rule-formula', $excel->metadataDiagnostics()[0]['code']);
-            self::assertSame(['B1 B3:B4' => 'A1>0'], $this->rules($this->xpath(1), '//s:dataValidation'));
+            self::assertSame(['B1 B3:B4' => $formula], $this->rules($this->xpath(1), '//s:dataValidation'));
         }
     }
 

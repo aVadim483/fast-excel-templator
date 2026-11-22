@@ -8,6 +8,8 @@ use PHPUnit\Framework\TestCase;
 
 final class OfficeFixturesTest extends TestCase
 {
+    private const SHEET_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+
     /** @dataProvider fixtures */
     public function testOfficeMetadataIsPreserved(string $name): void
     {
@@ -62,6 +64,59 @@ final class OfficeFixturesTest extends TestCase
             } finally { $source->close(); $result->close(); }
             self::assertSame('Report', \avadim\FastExcelReader\Excel::open($out)->readRows()[2]['A']);
         } finally { gc_collect_cycles(); @unlink($out); }
+    }
+
+    /** @dataProvider fixtures */
+    public function testOfficeRulesFollowRowsAfterInsertsAndSkip(string $name): void
+    {
+        $tpl = __DIR__ . '/fixtures/' . $name;
+        $out = sys_get_temp_dir() . '/fxt-office-rows-' . uniqid('', true) . '.xlsx';
+        try {
+            // The fixtures also contain defined names and other metadata outside the rule remapping scope.
+            $excel = Excel::template($tpl, $out);
+            $excel->sheet('Data')->transferRowsUntil(1)
+                ->insertRow(['B' => 7])->skipRows(1)->insertRow(['B' => 8])->transferRows();
+            self::assertTrue($excel->save());
+            self::assertSame(
+                ['unmapped-ranges', 'unmapped-defined-names'],
+                array_column($excel->metadataDiagnostics(), 'code')
+            );
+
+            $original = $this->readWorksheet($tpl);
+            $generated = $this->readWorksheet($out);
+            foreach (['dataValidation', 'conditionalFormatting'] as $tag) {
+                $sourceRules = $original->getElementsByTagNameNS(self::SHEET_NS, $tag);
+                $outputRules = $generated->getElementsByTagNameNS(self::SHEET_NS, $tag);
+                self::assertSame(1, $sourceRules->length, $tag);
+                self::assertSame(1, $outputRules->length, $tag);
+                $sourceRule = $sourceRules->item(0);
+                $outputRule = $outputRules->item(0);
+                self::assertSame('B2:B3', $sourceRule->getAttribute('sqref'), $tag);
+                self::assertSame('B4', $outputRule->getAttribute('sqref'), $tag);
+                $sourceRule->setAttribute('sqref', 'B4');
+                self::assertSame($sourceRule->C14N(true), $outputRule->C14N(true), $tag);
+            }
+
+            $xpath = new \DOMXPath($generated);
+            $xpath->registerNamespace('s', self::SHEET_NS);
+            self::assertSame('1', $xpath->evaluate('string(//s:dataValidations/@count)'));
+            self::assertSame('7', $xpath->evaluate('string(//s:c[@r="B2"]/s:v)'));
+            self::assertSame('8', $xpath->evaluate('string(//s:c[@r="B3"]/s:v)'));
+            self::assertSame('3', $xpath->evaluate('string(//s:c[@r="B4"]/s:v)'));
+        } finally { gc_collect_cycles(); @unlink($out); }
+    }
+
+    private function readWorksheet(string $file): \DOMDocument
+    {
+        $zip = new \ZipArchive();
+        self::assertTrue($zip->open($file));
+        try {
+            $dom = new \DOMDocument();
+            self::assertTrue($dom->loadXML($zip->getFromName('xl/worksheets/sheet1.xml')));
+            return $dom;
+        } finally {
+            $zip->close();
+        }
     }
 
     public static function fixtures(): array
